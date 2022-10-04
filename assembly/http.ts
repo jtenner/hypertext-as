@@ -87,7 +87,7 @@
  *  / %x5D-7E ; ']'-'~'
  *  / obs-text
  * [X] query = <query, see [RFC3986], Section 3.4>
- * quoted-pair = "\" ( HTAB / SP / VCHAR / obs-text )
+ * [X] quoted-pair = "\" ( HTAB / SP / VCHAR / obs-text )
  * quoted-string = DQUOTE *( qdtext / quoted-pair ) DQUOTE
  * rank = ( "0" [ "." *3DIGIT ] ) / ( "1" [ "." *3"0" ] )
  * reason-phrase = *( HTAB / SP / VCHAR / obs-text )
@@ -125,9 +125,9 @@
 
 import { KeywordRule, AnyOfRule, AnyRule, BetweenInclusiveRule, EqualsRule, EveryRule, ManyRule, OptionalRule, Range } from "./lexer";
 
-
+export let COLON = new EqualsRule(0x3A);
 export let DOT = new EqualsRule(0x2E);
-export let BACKSLASH = new EqualsRule(0x2F);
+export let SLASH = new EqualsRule(0x2F);
 export let HTTP = new KeywordRule("HTTP");
 export let ASTERISK = new EqualsRule(0x2A);
 export let QUESTION = new EqualsRule(0x3F);
@@ -203,14 +203,23 @@ export let PCHAR = new AnyRule([
 export let SEGMENT = new ManyRule(PCHAR);
 
 export let ABSOLUTE_PATH = new ManyRule(new EveryRule([
-  BACKSLASH,
+  SLASH,
   SEGMENT,
 ]));
+
+// obs-text = %x80-FF
+export let OBS_TEXT = new BetweenInclusiveRule(0x80, 0xFF);
+
+// quoted-pair = "\" ( HTAB / SP / VCHAR / obs-text )
+export let QUOTED_PAIR = new EveryRule([
+  SLASH,
+  new AnyRule([HTAB, SP, VCHAR, OBS_TEXT]),
+]);
 
 // query         = *( pchar / "/" / "?" )
 export let QUERY = new OptionalRule(
   new ManyRule(
-    new AnyRule([PCHAR, BACKSLASH, QUESTION]),
+    new AnyRule([PCHAR, SLASH, QUESTION]),
   ),
 );
 
@@ -326,7 +335,7 @@ export function http_version(buffer: ArrayBuffer, index: i32, range: Range): boo
   index = range.end;
 
   // check for the backslash
-  if (!BACKSLASH.test(buffer, index, range)) return false;
+  if (!SLASH.test(buffer, index, range)) return false;
   index = range.end;
 
   // digit
