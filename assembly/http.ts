@@ -7,7 +7,7 @@
  * [X] CTL = %x00-1F / %x7F ; controls
  * [X] DIGIT = %x30-39 ; 0-9
  * [X] DQUOTE =  %x22 ; " (Double Quote)
- * HEXDIG =  DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
+ * [X] HEXDIG =  DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
  * [X] HTAB =  %x09 ; horizontal tab
  * [X] LF =  %x0A ; linefeed
  * LWSP =  *(WSP / CRLF WSP)
@@ -28,7 +28,7 @@
  * Connection = *( "," OWS ) connection-option *( OWS "," [ OWS
  *  connection-option ] )
  * Content-Length = 1*DIGIT
- * HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
+ * [X] HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
  * [X] HTTP-name = %x48.54.54.50 ; HTTP
  * [X] HTTP-version = HTTP-name "/" DIGIT "." DIGIT
  * Host = uri-host [ ":" port ]
@@ -86,7 +86,7 @@
  * qdtext = HTAB / SP / "!" / %x23-5B ; '#'-'['
  *  / %x5D-7E ; ']'-'~'
  *  / obs-text
- * query = <query, see [RFC3986], Section 3.4>
+ * [X] query = <query, see [RFC3986], Section 3.4>
  * quoted-pair = "\" ( HTAB / SP / VCHAR / obs-text )
  * quoted-string = DQUOTE *( qdtext / quoted-pair ) DQUOTE
  * rank = ( "0" [ "." *3DIGIT ] ) / ( "1" [ "." *3"0" ] )
@@ -97,7 +97,6 @@
  * [X] request-line = method SP request-target SP HTTP-version CRLF
  * [X] request-target = origin-form / absolute-form / authority-form / asterisk-form
  * scheme = <scheme, see [RFC3986], Section 3.1>
- * segment = <segment, see [RFC3986], Section 3.3>
  * start-line = request-line / status-line
  * status-code = 3DIGIT
  * status-line = HTTP-version SP status-code SP reason-phrase CRLF
@@ -112,7 +111,17 @@
  * transfer-extension = token *( OWS ";" OWS transfer-parameter )
  * transfer-parameter = token BWS "=" BWS ( token / quoted-string )
  * uri-host = <host, see [RFC3986], Section 3.2.2>
+ *
+ * pct-encoded   = "%" HEXDIG HEXDIG
+ * segment       = *pchar
+ * segment-nz    = 1*pchar
+ * segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" )
+ *               ; non-zero-length segment without any colon ":"
+ *
+ * pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
  */
+
+
 
 import { KeywordRule, AnyOfRule, AnyRule, BetweenInclusiveRule, EqualsRule, EveryRule, ManyRule, OptionalRule, Range } from "./lexer";
 
@@ -132,14 +141,14 @@ export let CTL = new AnyRule([
 export let CHAR = new BetweenInclusiveRule(0x01, 0x7F);
 export let DQUOTE = new EqualsRule(0x22);
 export let ALPHA = new AnyRule([
-  new BetweenInclusiveRule(0x41, 0x5A),
-  new BetweenInclusiveRule(0x61, 0x7A),
+  new BetweenInclusiveRule(0x41, 0x5A), // lower case a-z
+  new BetweenInclusiveRule(0x61, 0x7A), // upper case A-Z
 ]);
 export let DIGIT = new BetweenInclusiveRule(0x30, 0x39);
 export let VCHAR = new BetweenInclusiveRule(0x21, 0x7E);
 export let SP = new EqualsRule(0x20);
 export let HTAB = new EqualsRule(0x09);
-export let RWS = new AnyRule([SP, HTAB]);
+export let RWS = new ManyRule(new AnyRule([SP, HTAB]));
 export let OWS = new OptionalRule(RWS);
 export let BWS = OWS;
 export let TCHAR = new AnyRule([
@@ -157,12 +166,31 @@ export let LWSP = new OptionalRule(
     ]),
   ),
 );
+export let PERCENT = new EqualsRule(0x25);
+export let HEXCHAR = new AnyRule([
+  new BetweenInclusiveRule(0x61, 0x66),
+  new BetweenInclusiveRule(0x41, 0x46),
+]);
+export let HEXDIG = new AnyRule([DIGIT, HEXCHAR]);
+
 
 export let UNRESERVED = new AnyRule([
   ALPHA,
   DIGIT,
   new AnyOfRule("-._~"),
-])
+]);
+
+// ABSOLUTE_PATH = 1*( "/" segment )
+
+// pct-encoded   = "%" HEXDIG HEXDIG
+export let PCT_ENCODED = new EveryRule([
+  PERCENT,
+  HEXDIG,
+  HEXDIG,
+]);
+
+//sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+export let SUB_DELIMS = new AnyOfRule("!$&'()*+,;=");
 
 // pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
 export let PCHAR = new AnyRule([
@@ -172,10 +200,73 @@ export let PCHAR = new AnyRule([
   new AnyOfRule(":@"),
 ]);
 
+export let SEGMENT = new ManyRule(PCHAR);
+
+export let ABSOLUTE_PATH = new ManyRule(new EveryRule([
+  BACKSLASH,
+  SEGMENT,
+]));
+
+// query         = *( pchar / "/" / "?" )
+export let QUERY = new OptionalRule(
+  new ManyRule(
+    new AnyRule([PCHAR, BACKSLASH, QUESTION]),
+  ),
+);
+
 export class Request {
   method: string | null = null;
   version: string | null = null;
   target: string | null = null;
+  headers: Map<string, string> = new Map<string, string>();
+}
+
+// start-line *( header-field CRLF ) CRLF [ message-body ]
+export function http_request(buffer: ArrayBuffer, range: Range, req: Request): bool {
+  // check the start lin
+  if (!request_line(buffer, range, req)) return false;
+  let index = range.end;
+
+  while (header_field(buffer, index, range, req)) {
+    index = range.end;
+  }
+
+  if (!CRLF.test(buffer, index, range)) return false;
+  index = range.end;
+
+  message_body(buffer, index, range, req);
+  range.start = 0;
+  return true;
+}
+
+// header-field = field-name ":" OWS field-value OWS
+export function header_field(buffer: ArrayBuffer, index: i32, range: Range, req: Request): bool {
+  // we are parsing a single header
+
+  // memoize the start
+  let start = index;
+
+  // test for a field name
+  if (!field_name(buffer, index, range)) return false;
+  let field = range.toString();
+  index = range.end;
+
+  // test for ":"
+  if (!COLON.test(buffer, index, range)) return false;
+  index = range.end;
+
+  // test for optional whitespace
+  OWS.test(buffer, index, range);
+  index = range.end;
+
+  if (!field_value(buffer, index, range)) return false;
+  let value = range.toString()
+  index = range.end;
+
+  OWS.test(buffer, index, range);
+
+  req.headers.set(field, value);
+  range.start = start;
 }
 
 // request-line = method SP request-target SP HTTP-version CRLF
@@ -260,11 +351,11 @@ export function http_version(buffer: ArrayBuffer, index: i32, range: Range): boo
 // origin-form = absolute-path [ "?" query ]
 export function origin_form(buffer: ArrayBuffer, index: i32, range: Range): bool {
   let start = index;
-  if (!absolute_path(buffer, index, range)) return false;
+  if (!ABSOLUTE_PATH.test(buffer, index, range)) return false;
   index = range.end;
 
   if (QUESTION.test(buffer, index, range)) {
-    query(buffer, index, range);
+    QUERY.test(buffer, index, range);
     range.start = start;
     return true;
   } else {
@@ -285,8 +376,4 @@ export function authority_form(buffer: ArrayBuffer, index: i32, range: Range): b
 
 export function asterisk_form(buffer: ArrayBuffer, index: i32, range: Range): bool {
   return ASTERISK.test(buffer, index, range);
-}
-
-export function absolute_path(buffer: ArrayBuffer, index: i32, range: Range): bool {
-  
 }
