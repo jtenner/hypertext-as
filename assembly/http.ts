@@ -166,6 +166,9 @@ export let LWSP = new OptionalRule(
     ]),
   ),
 );
+
+export let WSP = new AnyRule([WSP, HTAB]);
+
 export let PERCENT = new EqualsRule(0x25);
 export let HEXCHAR = new AnyRule([
   new BetweenInclusiveRule(0x61, 0x66),
