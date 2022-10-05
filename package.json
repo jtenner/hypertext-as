@@ -20,5 +20,8 @@
       "import": "./build/release.js",
       "types": "./build/release.d.ts"
     }
+  },
+  "dependencies": {
+    "byte-parse-as": "github:jtenner/byte-parse-as"
   }
 }
