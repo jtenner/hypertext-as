@@ -1,9 +1,20 @@
-import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EqualsRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range } from "byte-parse-as/assembly";
+import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EqualsRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range, EMPTY } from "byte-parse-as/assembly";
 
-import { CLOSE_BRACKET, COLON, DOT, FIVE, ONE, OPEN_BRACKET, SLASH, TWO } from "./util";
+import { CLOSE_BRACKET, COLON, DOT, FIVE, HASH, ONE, OPEN_BRACKET, QUESTION, SLASH, TWO } from "./util";
 import { ALPHA, DIGIT, HEXDIG } from "./rfc5234";
 
 export class URI {
+  constructor(
+    public raw: string,
+  ) {
+    let sink = new ByteSink();
+    sink.write(raw);
+    let range = new Range(0, 0, sink);
+    this.valid = parse_uri(sink, 0, range, this);
+  }
+
+  valid: bool = false;
+
   scheme: string | null = null;
   path: string | null = null;
   query: string | null = null;
@@ -276,7 +287,9 @@ export const PATH_ROOTLESS = new EveryRule([
   SEGMENT_NZ,
   // reuse the same rule: *( "/" segment )
   PATH_ABEMPTY,
-])
+]);
+
+export const PATH_EMPTY = EMPTY;
 
 // HIER PART
 // hier-part     = "//" authority path-abempty
@@ -301,6 +314,11 @@ export const SCHEME = new EveryRule([
   ])))
 ]);
 
+// query         = *( pchar / "/" / "?" )
+export const QUERY = new OptionalRule(new ManyRule(new AnyRule([PCHAR, SLASH, QUESTION])));
+// fragment      = *( pchar / "/" / "?" )
+export const FRAGMENT = QUERY;
+
 // URI           = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 export function parse_uri(buffer: ByteSink, index: i32, range: Range, uri: URI): bool {
   let start = index;
@@ -319,6 +337,7 @@ export function parse_uri(buffer: ByteSink, index: i32, range: Range, uri: URI):
   uri.path = range.toString();
   index = range.end;
 
+  trace("HIER_PART: " + uri.path!);
   // query
   if (QUESTION.test(buffer, index, range)) {
     index++;

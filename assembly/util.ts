@@ -20,3 +20,9 @@ export const DOT = new EqualsRule(0x2E);
 
 // "/"
 export const SLASH = new EqualsRule(0x2F);
+
+// "?"
+export const QUESTION = new EqualsRule(0x3F);
+
+// "#"
+export const HASH = new EqualsRule(0x23);
