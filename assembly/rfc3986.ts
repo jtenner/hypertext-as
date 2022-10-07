@@ -337,7 +337,6 @@ export function parse_uri(buffer: ByteSink, index: i32, range: Range, uri: URI):
   uri.path = range.toString();
   index = range.end;
 
-  trace("HIER_PART: " + uri.path!);
   // query
   if (QUESTION.test(buffer, index, range)) {
     index++;
@@ -352,11 +351,22 @@ export function parse_uri(buffer: ByteSink, index: i32, range: Range, uri: URI):
     index++;
     if (FRAGMENT.test(buffer, index, range)) {
       uri.fragment = range.toString();
+      index = range.end;
     }
   }
 
-  if (buffer.byteLength != index) return false;
+  if (buffer.byteLength != index) {
+    return false;
+  }
 
   range.start = start;
   return true;
 }
+
+// absolute-URI  = scheme ":" hier-part [ "?" query ]
+export const ABSOLUTE_URI = new EveryRule([
+  SCHEME,
+  COLON,
+  HIER_PART,
+  new OptionalRule(new EveryRule([QUESTION, QUERY]))
+]);

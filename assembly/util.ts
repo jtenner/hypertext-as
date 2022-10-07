@@ -26,3 +26,6 @@ export const QUESTION = new EqualsRule(0x3F);
 
 // "#"
 export const HASH = new EqualsRule(0x23);
+
+// "*"
+export const ASTERISK = new EqualsRule(0x2A);
