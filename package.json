@@ -1,6 +1,6 @@
 {
   "name": "hypertext-as",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -22,6 +22,6 @@
     }
   },
   "dependencies": {
-    "byte-parse-as": "github:jtenner/byte-parse-as"
+    "byte-parse-as": "^0.0.1"
   }
 }

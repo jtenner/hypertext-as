@@ -2,7 +2,7 @@ import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EveryRul
 import { ABSOLUTE_URI, AUTHORITY, QUERY, SEGMENT, URI } from "./rfc3986";
 import { ALPHA, CRLF, DIGIT, HTAB, OCTET, SP, VCHAR, WSP } from "./rfc5234";
 import { ASTERISK, COLON, DOT, QUESTION, SLASH } from "./util";
-import { utoa32 } from "util/number";
+
 //      RWS            = 1*( SP / HTAB )
 export const RWS = new ManyRule(new AnyRule([SP, HTAB]));
 //      OWS            = *( SP / HTAB )
