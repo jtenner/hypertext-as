@@ -150,25 +150,103 @@ export const HTTP_MESSAGE = new EveryRule([
 ]);
 
 export class Request {
-  public method: string | null = null;
-  public target: string | null = null;
-  public version: string | null = null;
-  public body: Range | null = null;
+  static parse(buffer: ByteSink): Request {
+    let req = new Request();
+    req._parsed = true;
+    req.valid = parse_request(buffer, req);
+    return req;
+  }
 
+  /** The HTTP Method. */
+  public method: string | null = null;
+
+  /** The target for the HTTP request. */
+  public target: string | null = null;
+
+  /** The HTTP version string, this library only supports 1.1. */
+  public version: string = "HTTP/1.1";
+
+  /** This property sets wether the Request was instantiated from `Request.parse()`. */
+  private _parsed: bool = false;
+
+  /** If this request was parsed, the body range property will be set. */
+  private _bodyRange: Range | null = null;
+
+  /** If this request was not parsed, it will be written to via the `write()` method. */
+  private _body: ByteSink | null = null;
+
+  /**
+   * If this request was parsed, it returns the parsed body range,
+   * otherwise it returns a new range of bytes that were written to
+   * this request.
+   */
+  get body(): Range {
+    if (this._parsed) return this._bodyRange!;
+    return new Range(0, this._body!.length, this._body!);
+  }
+
+  set body(value: Range) {
+    if (this._parsed) this._bodyRange = value;
+    else this._body = new ByteSink(value.toBuffer());
+  }
+
+  /** If this request was parsed, and the parsing was successful, this property will be true. */
   public valid: bool = false;
 
+  /** All the headers for this request. */
   public headers: Map<string, string> | null = null;
 
-  constructor(
-    public buffer: ByteSink
-  ) {
-    this.valid = parse_request(buffer, this);
+  constructor() {}
+
+  /** Encode this request into the given bytesink, returning true if the buffer was written. */
+  encode(buffer: ByteSink): bool {
+    if (!this.method) return false;
+    if (!this.target) return false;
+    if (!this.version) return false;
+    let method = this.method!;
+    let target = this.target!;
+    let version = this.version!;
+    let body = this.body;
+
+    // Start line
+    buffer.write(method);
+    buffer.write(" ");
+    buffer.write(target);
+    buffer.write(" ");
+    buffer.write(version);
+    buffer.write("\r\n");
+
+    // write all the headers
+    if (this.headers) {
+      let headers = this.headers!;
+      let keys = headers.keys();
+      let length = keys.length;
+      for (let i = 0; i < length; i++) {
+        let key = keys[i];
+        let value = headers.get(key);
+        buffer.write(key);
+        buffer.write(": ");
+        buffer.write(value);
+        buffer.write("\r\n");
+      }
+    }
+
+    // CRLF
+    buffer.write("\r\n");
+
+    // BODY
+    buffer.write(body.toBuffer());
+
+    return true;
   }
 }
 
+/**
+ * Parse a request within the given buffer, and populate the `Request`
+ * object provided byref. It returns true if the request is valid.
+ */
 export function parse_request(buffer: ByteSink, req: Request): bool {
   let range = new Range(0, 0, buffer);
-
   // Get the request line
   // request-line = method SP request-target SP HTTP-version CRLF
 
@@ -244,19 +322,56 @@ export function parse_request(buffer: ByteSink, req: Request): bool {
 }
 
 export class Response {
-  public valid: bool = false;
-  public version: string | null = null;
-  public status: i32 = 0;
-  public headers: Map<string, string> | null = null;
-  public body: Range | null = null;
-
-  constructor(
-    public buffer: ByteSink,
-  ) {
-    this.valid = parse_response(buffer, this);
+  static parse(buffer: ByteSink): Response {
+    let res = new Response();
+    res._parsed = true;
+    res.valid = parse_response(buffer, res);
+    return res;
   }
+
+  /** If this response was parsed, this property will be set to true if the response was valid. */
+  public valid: bool = false;
+  /** The HTTP version of this response, this library only supports 1.1. */
+  public version: string | null = "HTTP/1.1";
+  /** The status code. */
+  public status: i32 = 0;
+  // TODO: Make a Status Code enum
+
+  /** The response headers. */
+  public headers: Map<string, string> | null = null;
+
+  /** If this response was parsed from `Response.parse()` then this will be true.  */
+  private _parsed: bool = false;
+
+  /** If this response was parsed, this value will be set if the body was parsed correctly. */
+  private _bodyRange: Range | null = null;
+  /** If this response was created, this bytesink will be written to. */
+  private _body: ByteSink | null = null;
+
+  /**
+   * If this response was parsed, it will return the parsed body.
+   * Otherwise, it will return a new range with the _body as the
+   * underlying stream.
+   */
+  get body(): Range {
+    if (this._parsed) return this._bodyRange!;
+    return new Range(0, this._body!.length, this._body!);
+  }
+  set body(value: Range) {
+    if (this._parsed) {
+      this._bodyRange = value;
+    } else {
+      this._body = new ByteSink(value.toBuffer());
+    }
+  }
+
+  constructor() { }
 }
 
+/**
+ * Parse a response from the given buffer, and populate the
+ * given response object, returning true if parsing was successful.
+ */
 export function parse_response(buffer: ByteSink, res: Response): bool {
   let range = new Range(0, 0, buffer);
   // HTTP-version SP status-code SP reason-phrase CRLF
