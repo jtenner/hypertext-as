@@ -1,11 +1,10 @@
 import { AnyOfRule, AnyRule, BetweenInclusiveRule, EqualsRule, EveryRule, ManyRule, OptionalRule, Rule } from "byte-parse-as/assembly";
-import { UtilParsers } from "./util";
 
-export class RFC5234 extends UtilParsers {
+export class RFC5234 {
   constructor() {
-    super();
+
     // ALPHA          =  %x41-5A / %x61-7A   ; A-Z / a-z
-    this.ALPHA = new AnyRule([
+    let ALPHA = this.ALPHA = new AnyRule([
       new BetweenInclusiveRule(0x41, 0x5A),
       new BetweenInclusiveRule(0x61, 0x7A),
     ]);
@@ -14,12 +13,12 @@ export class RFC5234 extends UtilParsers {
     this.CHAR = new BetweenInclusiveRule(0x01, 0x7F);
 
     // CR             =  %x0D
-    this.CR = new EqualsRule(0x0D);
+    let CR = this.CR = new EqualsRule(0x0D);
     // LF             =  %x0A
-    this.LF = new EqualsRule(0x0A);
+    let LF = this.LF = new EqualsRule(0x0A);
 
     // CR LF
-    this.CRLF = new EveryRule([this.CR, this.LF]);
+    let CRLF = this.CRLF = new EveryRule([CR, LF]);
 
     // CTL            =  %x00-1F / %x7F
     this.CTL = new AnyRule([
@@ -28,32 +27,32 @@ export class RFC5234 extends UtilParsers {
     ]);
 
     // DIGIT          =  %x30-39
-    this.DIGIT = new BetweenInclusiveRule(0x30, 0x39);
+    let DIGIT = this.DIGIT = new BetweenInclusiveRule(0x30, 0x39);
 
     // DQUOTE         =  %x22
     this.DQUOTE = new EqualsRule(0x22);
 
     // HEXDIG         =  DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
     this.HEXDIG = new AnyRule([
-      this.DIGIT,
+      DIGIT,
       new AnyOfRule("ABCDEF"),
     ]);
 
     // HTAB           =  %x09
-    this.HTAB = new EqualsRule(0x09);
+    let HTAB = this.HTAB = new EqualsRule(0x09);
 
     // SP             =  %x20
-    this.SP = new EqualsRule(0x20);
+    let SP = this.SP = new EqualsRule(0x20);
 
     // WSP            =  SP / HTAB
-    this.WSP = new AnyRule([this.SP, this.HTAB]);
+    let WSP =  this.WSP = new AnyRule([SP, HTAB]);
 
     // LWSP           =  *(WSP / CRLF WSP)
     this.LWSP = new OptionalRule(
       new ManyRule(
         new AnyRule([
-          this.WSP,
-          new EveryRule([this.CRLF, this.WSP]),
+          WSP,
+          new EveryRule([CRLF, WSP]),
         ]),
       ),
     );
@@ -108,4 +107,34 @@ export class RFC5234 extends UtilParsers {
 
   // VCHAR          =  %x21-7E
   public VCHAR: Rule;
+  
+  // ":"
+  public COLON: Rule = new EqualsRule(0x3A);
+
+  // "["
+  public OPEN_BRACKET: Rule = new EqualsRule(0x5B);
+  // "]"
+  public CLOSE_BRACKET: Rule = new EqualsRule(0x5D);
+
+  // "1"
+  public ONE: Rule = new EqualsRule(0x01);
+  // "2"
+  public TWO: Rule = new EqualsRule(0x32);
+  // "5"
+  public FIVE: Rule = new EqualsRule(0x35);
+
+  // "."
+  public DOT: Rule = new EqualsRule(0x2E);
+
+  // "/"
+  public SLASH: Rule = new EqualsRule(0x2F);
+
+  // "?"
+  public QUESTION: Rule = new EqualsRule(0x3F);
+
+  // "#"
+  public HASH: Rule = new EqualsRule(0x23);
+
+  // "*"
+  public ASTERISK: Rule = new EqualsRule(0x2A);
 }

@@ -1,22 +1,23 @@
 import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EqualsRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range, EMPTY, Rule } from "byte-parse-as/assembly";
 import { RFC5234 } from "./rfc5234";
 
-export class URIParser extends RFC5234 {
+export class URIParser {
   constructor() {
-    super();
-    this.PORT = new ManyRule(this.DIGIT);
+    let parent = this.parent = new RFC5234()
+
+    let PORT = this.PORT = new ManyRule(parent.DIGIT);
 
     // sub-delims    = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
-    this.SUB_DELIMS = new AnyOfRule("!$&'()*+,;=");
+    let SUB_DELIMS = this.SUB_DELIMS = new AnyOfRule("!$&'()*+,;=");
 
     // pct-encoded   = "%" HEXDIG HEXDIG
-    this.PCT_ENCODED = new EveryRule([new EqualsRule(0x25), this.HEXDIG, this.HEXDIG]);
+    let PCT_ENCODED = this.PCT_ENCODED = new EveryRule([new EqualsRule(0x25), parent.HEXDIG, parent.HEXDIG]);
 
     // UNRESERVED    = ALPHA / DIGIT / "-" / "." / "_" / "~"
-    this.UNRESERVED = new AnyRule([this.ALPHA, this.DIGIT, new AnyOfRule("-._~")]);
+    let UNRESERVED = this.UNRESERVED = new AnyRule([parent.ALPHA, parent.DIGIT, new AnyOfRule("-._~")]);
 
     /** reg-name    = *( unreserved / pct-encoded / sub-delims ) */
-    this.REG_NAME = new OptionalRule(new ManyRule(new AnyRule([this.UNRESERVED, this.PCT_ENCODED, this.SUB_DELIMS])));
+    let REG_NAME = this.REG_NAME = new OptionalRule(new ManyRule(new AnyRule([UNRESERVED, PCT_ENCODED, SUB_DELIMS])));
 
     /**
      * dec-octet     = DIGIT                 ; 0-9
@@ -25,61 +26,61 @@ export class URIParser extends RFC5234 {
      *               / "2" %x30-34 DIGIT     ; 200-249
      *               / "25" %x30-35          ; 250-255
      */
-    this.DEC_OCTET = new AnyRule([
+    let DEC_OCTET = this.DEC_OCTET = new AnyRule([
       // "25" %x30-35          ; 250-255
-      new EveryRule([this.TWO, this.FIVE, new BetweenInclusiveRule(0x30, 0x35)]),
+      new EveryRule([parent.TWO, parent.FIVE, new BetweenInclusiveRule(0x30, 0x35)]),
       // "2" %x30-34 DIGIT     ; 200-249
-      new EveryRule([this.TWO, new BetweenInclusiveRule(0x30, 0x34), this.DIGIT]),
+      new EveryRule([parent.TWO, new BetweenInclusiveRule(0x30, 0x34), parent.DIGIT]),
       // "1" 2DIGIT            ; 100-199
-      new EveryRule([this.ONE, new CountRule(this.DIGIT, 2)]),
+      new EveryRule([parent.ONE, new CountRule(parent.DIGIT, 2)]),
       // %x31-39 DIGIT         ; 10-99
-      new EveryRule([new BetweenInclusiveRule(0x31, 0x39), this.DIGIT]),
+      new EveryRule([new BetweenInclusiveRule(0x31, 0x39), parent.DIGIT]),
       // DIGIT                 ; 0-9
-      this.DIGIT
+      parent.DIGIT
     ]);
 
     // IPv4address   = dec-octet "." dec-octet "." dec-octet "." dec-octet
-    this.IPV4_ADDRESS = new EveryRule([
-      this.DEC_OCTET,
-      this.DOT,
-      this.DEC_OCTET,
-      this.DOT,
-      this.DEC_OCTET,
-      this.DOT,
-      this.DEC_OCTET,
+    let IPV4_ADDRESS = this.IPV4_ADDRESS = new EveryRule([
+      DEC_OCTET,
+      parent.DOT,
+      DEC_OCTET,
+      parent.DOT,
+      DEC_OCTET,
+      parent.DOT,
+      DEC_OCTET,
     ]);
 
     // 4 HEXDIG
-    this.H16 = new CountRule(this.HEXDIG, 4);
+    let H16 = this.H16 = new CountRule(parent.HEXDIG, 4);
 
     // LS32 = ( h16 ":" h16 ) / IPv4address
-    this.LS32 = new AnyRule([
-      new EveryRule([this.H16, this.COLON, this.H16]),
-      this.IPV4_ADDRESS,
+    let LS32 = this.LS32 = new AnyRule([
+      new EveryRule([H16, parent.COLON, H16]),
+      IPV4_ADDRESS,
     ]);
 
     /** 6( h16 ":" ) ls32 */
-    this.IPV6_ADDRESS_1 = new EveryRule([
+    let IPV6_ADDRESS_1 = this.IPV6_ADDRESS_1 = new EveryRule([
       new CountRule(new EveryRule([
-        this.H16,
-        this.COLON,
+        H16,
+        parent.COLON,
       ]), 6),
-      this.LS32,
+      LS32,
     ]);
 
     /** "::" 5( h16 ":" ) ls32 */
-    this.IPV6_ADDRESS_2 = new EveryRule([
-      new CountRule(this.COLON, 2),
-      new CountRule(new EveryRule([this.H16, this.COLON]), 5),
-      this.LS32,
+    let IPV6_ADDRESS_2 = this.IPV6_ADDRESS_2 = new EveryRule([
+      new CountRule(parent.COLON, 2),
+      new CountRule(new EveryRule([H16, parent.COLON]), 5),
+      LS32,
     ]);
 
     /** [               h16 ] "::" 4( h16 ":" ) ls32 */
-    this.IPV6_ADDRESS_3 = new EveryRule([
-      new OptionalRule(this.H16),
-      new CountRule(this.COLON, 2),
-      new CountRule(new EveryRule([this.H16, this.COLON]), 4),
-      this.LS32,
+    let IPV6_ADDRESS_3 = this.IPV6_ADDRESS_3 = new EveryRule([
+      new OptionalRule(H16),
+      new CountRule(parent.COLON, 2),
+      new CountRule(new EveryRule([H16, parent.COLON]), 4),
+      LS32,
     ]);
 
     /**
@@ -89,17 +90,17 @@ export class URIParser extends RFC5234 {
      *
      * [ h16 *1( ":" h16 ) ] "::" 3( h16 ":" ) ls32
     */
-    this.IPV6_ADDRESS_4 = new EveryRule([
+    let IPV6_ADDRESS_4 = this.IPV6_ADDRESS_4 = new EveryRule([
       new OptionalRule(new EveryRule([
-        this.H16,
+        H16,
         new OptionalRule(new EveryRule([
-          this.COLON,
-          this.H16,
+          parent.COLON,
+          H16,
         ])),
       ])),
-      new CountRule(this.COLON, 2),
-      new CountRule(new EveryRule([this.H16, this.COLON]), 3),
-      this.LS32,
+      new CountRule(parent.COLON, 2),
+      new CountRule(new EveryRule([H16, parent.COLON]), 3),
+      LS32,
     ]);
 
     /**
@@ -109,17 +110,17 @@ export class URIParser extends RFC5234 {
      *
      * [ h16 *2( ":" h16 ) ] "::" 2( h16 ":" ) ls32
      */
-    this.IPV6_ADDRESS_5 = new EveryRule([
+    let IPV6_ADDRESS_5 = this.IPV6_ADDRESS_5 = new EveryRule([
       new OptionalRule(new EveryRule([
-        this.H16,
+        H16,
         new CountRule(
-          new OptionalRule(new ManyRule(new EveryRule([this.COLON, this.H16]))),
+          new OptionalRule(new ManyRule(new EveryRule([parent.COLON, H16]))),
           2,
         ),
       ])),
-      new CountRule(this.COLON, 2),
-      new CountRule(new EveryRule([this.H16, this.COLON]), 2),
-      this.LS32,
+      new CountRule(parent.COLON, 2),
+      new CountRule(new EveryRule([H16, parent.COLON]), 2),
+      LS32,
     ]);
 
     /**
@@ -129,15 +130,15 @@ export class URIParser extends RFC5234 {
      *
      * [ h16 3*(":" h16) ] "::"    h16 ":"   ls32
      */
-    this.IPV6_ADDRESS_6 = new EveryRule([
+    let IPV6_ADDRESS_6 = this.IPV6_ADDRESS_6 = new EveryRule([
       new OptionalRule(new EveryRule([
-        this.H16,
-        new CountRule(new OptionalRule(new EveryRule([this.COLON, this.H16])), 3),
+        H16,
+        new CountRule(new OptionalRule(new EveryRule([parent.COLON, H16])), 3),
       ])),
-      new CountRule(this.COLON, 2),
-      this.H16,
-      this.COLON,
-      this.LS32,
+      new CountRule(parent.COLON, 2),
+      H16,
+      parent.COLON,
+      LS32,
     ]);
 
     /**
@@ -147,13 +148,13 @@ export class URIParser extends RFC5234 {
      *
      * [ h16 *4( ":" h16 ) ]  "::"              ls32
      */
-    this.IPV6_ADDRESS_7 = new EveryRule([
+    let IPV6_ADDRESS_7 = this.IPV6_ADDRESS_7 = new EveryRule([
       new OptionalRule(new EveryRule([
-        this.H16,
-        new CountRule(new OptionalRule(new EveryRule([this.COLON, this.H16])), 4),
+        H16,
+        new CountRule(new OptionalRule(new EveryRule([parent.COLON, H16])), 4),
       ])),
-      new CountRule(this.COLON, 2),
-      this.LS32,
+      new CountRule(parent.COLON, 2),
+      LS32,
     ]);
 
     /**
@@ -163,13 +164,13 @@ export class URIParser extends RFC5234 {
      *
      * [ h16 *5( ":" h16 ) ]  "::"             h16
      */
-    this.IPV6_ADDRESS_8 = new EveryRule([
+    let IPV6_ADDRESS_8 = this.IPV6_ADDRESS_8 = new EveryRule([
       new OptionalRule(new EveryRule([
-        this.H16,
-        new CountRule(new OptionalRule(new EveryRule([this.COLON, this.H16])), 5),
+        H16,
+        new CountRule(new OptionalRule(new EveryRule([parent.COLON, H16])), 5),
       ])),
-      new CountRule(this.COLON, 2),
-      this.H16,
+      new CountRule(parent.COLON, 2),
+      H16,
     ]);
 
     /**
@@ -179,12 +180,12 @@ export class URIParser extends RFC5234 {
      *
      * [ h16 *6( ":" h16 ) ]  "::"             h16
      */
-    this.IPV6_ADDRESS_9 = new EveryRule([
+    let IPV6_ADDRESS_9 = this.IPV6_ADDRESS_9 = new EveryRule([
       new OptionalRule(new EveryRule([
-        this.H16,
-        new CountRule(new OptionalRule(new EveryRule([this.COLON, this.H16])), 6),
+        H16,
+        new CountRule(new OptionalRule(new EveryRule([parent.COLON, H16])), 6),
       ])),
-      new CountRule(this.COLON, 2),
+      new CountRule(parent.COLON, 2),
     ]);
 
     /**
@@ -198,82 +199,82 @@ export class URIParser extends RFC5234 {
      *               / [ *5( h16 ":" ) h16 ] "::"              h16
      *               / [ *6( h16 ":" ) h16 ] "::"
      */
-    this.IPV6_ADDRESS = new AnyRule([
-      this.IPV6_ADDRESS_1,
-      this.IPV6_ADDRESS_2,
-      this.IPV6_ADDRESS_3,
-      this.IPV6_ADDRESS_4,
-      this.IPV6_ADDRESS_5,
-      this.IPV6_ADDRESS_6,
-      this.IPV6_ADDRESS_7,
-      this.IPV6_ADDRESS_8,
-      this.IPV6_ADDRESS_9,
+    let IPV6_ADDRESS = this.IPV6_ADDRESS = new AnyRule([
+      IPV6_ADDRESS_1,
+      IPV6_ADDRESS_2,
+      IPV6_ADDRESS_3,
+      IPV6_ADDRESS_4,
+      IPV6_ADDRESS_5,
+      IPV6_ADDRESS_6,
+      IPV6_ADDRESS_7,
+      IPV6_ADDRESS_8,
+      IPV6_ADDRESS_9,
     ]);
 
     // IPvFuture  = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
-    this.IPV_FUTURE = new EveryRule([
+    let IPV_FUTURE = this.IPV_FUTURE = new EveryRule([
       new EqualsRule(0x76),
-      this.HEXDIG,
-      this.DOT,
-      new AnyRule([this.UNRESERVED, this.SUB_DELIMS, this.COLON])
+      parent.HEXDIG,
+      parent.DOT,
+      new AnyRule([UNRESERVED, SUB_DELIMS, parent.COLON])
     ]);
 
     // IP-literal    = "[" ( IPv6address / IPvFuture  ) "]"
-    this.IP_LITERAL = new EveryRule([
-      this.OPEN_BRACKET,
-      new AnyRule([this.IPV6_ADDRESS, this.IPV_FUTURE]),
-      this.CLOSE_BRACKET,
+    let IP_LITERAL = this.IP_LITERAL = new EveryRule([
+      parent.OPEN_BRACKET,
+      new AnyRule([IPV6_ADDRESS, IPV_FUTURE]),
+      parent.CLOSE_BRACKET,
     ]);
 
     // host          = IP-literal / IPv4address / reg-name
-    this.HOST = new AnyRule([this.IP_LITERAL, this.IPV4_ADDRESS, this.REG_NAME]);
+    let HOST = this.HOST = new AnyRule([IP_LITERAL, IPV4_ADDRESS, REG_NAME]);
 
     // userinfo      = *( unreserved / pct-encoded / sub-delims / ":" )
-    this.USERINFO = new OptionalRule(new ManyRule(new AnyRule([
-      this.UNRESERVED,
-      this.PCT_ENCODED,
-      this.SUB_DELIMS,
-      this.COLON,
+    let USERINFO = this.USERINFO = new OptionalRule(new ManyRule(new AnyRule([
+      UNRESERVED,
+      PCT_ENCODED,
+      SUB_DELIMS,
+      parent.COLON,
     ])));
 
     // authority     = [ userinfo "@" ] host [ ":" port ]
-    this.AUTHORITY = new EveryRule([
-      new OptionalRule(new EveryRule([this.USERINFO, new EqualsRule(0x40)])),
-      this.HOST,
-      new OptionalRule(new EveryRule([this.COLON, this.PORT])),
+    let AUTHORITY = this.AUTHORITY = new EveryRule([
+      new OptionalRule(new EveryRule([USERINFO, new EqualsRule(0x40)])),
+      HOST,
+      new OptionalRule(new EveryRule([parent.COLON, PORT])),
     ]);
 
     // pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
-    this.PCHAR = new AnyRule([this.UNRESERVED, this.PCT_ENCODED, this.SUB_DELIMS, new AnyOfRule(":@")]);
+    let PCHAR = this.PCHAR = new AnyRule([UNRESERVED, PCT_ENCODED, SUB_DELIMS, new AnyOfRule(":@")]);
 
-    this.SEGMENT = new OptionalRule(new ManyRule(this.PCHAR));
+    let SEGMENT = this.SEGMENT = new OptionalRule(new ManyRule(PCHAR));
 
-    this.PATH_ABEMPTY = new OptionalRule(new ManyRule(new EveryRule([
-      this.SLASH,
-      this.SEGMENT,
+    let PATH_ABEMPTY = this.PATH_ABEMPTY = new OptionalRule(new ManyRule(new EveryRule([
+      parent.SLASH,
+      SEGMENT,
     ])));
 
     // segment-nz    = 1*pchar
-    this.SEGMENT_NZ = new ManyRule(this.PCHAR);
+    let SEGMENT_NZ = this.SEGMENT_NZ = new ManyRule(PCHAR);
 
     // path-absolute = "/" [ segment-nz *( "/" segment ) ]
-    this.PATH_ABSOLUTE = new EveryRule([
-      this.SLASH,
+    let PATH_ABSOLUTE = this.PATH_ABSOLUTE = new EveryRule([
+      parent.SLASH,
       new OptionalRule(new EveryRule([
-        this.SEGMENT_NZ,
+        SEGMENT_NZ,
         // reuse the same rule: *( "/" segment )
-        this.PATH_ABEMPTY,
+        PATH_ABEMPTY,
       ])),
     ]);
 
     // path-rootless = segment-nz *( "/" segment )
-    this.PATH_ROOTLESS = new EveryRule([
-      this.SEGMENT_NZ,
+    let PATH_ROOTLESS = this.PATH_ROOTLESS = new EveryRule([
+      SEGMENT_NZ,
       // reuse the same rule: *( "/" segment )
-      this.PATH_ABEMPTY,
+      PATH_ABEMPTY,
     ]);
 
-    this.PATH_EMPTY = EMPTY;
+    let PATH_EMPTY = this.PATH_EMPTY = EMPTY;
 
     // HIER PART
     // hier-part     = "//" authority path-abempty
@@ -281,36 +282,39 @@ export class URIParser extends RFC5234 {
     //                  / path-rootless
     //                  / path-empty
 
-    this.HIER_PART = new AnyRule([
-      new EveryRule([new KeywordRule("//"), this.AUTHORITY, this.PATH_ABEMPTY]),
-      this.PATH_ABSOLUTE,
-      this.PATH_ROOTLESS,
-      this.PATH_EMPTY,
+    let HIER_PART = this.HIER_PART = new AnyRule([
+      new EveryRule([new KeywordRule("//"), AUTHORITY, PATH_ABEMPTY]),
+      PATH_ABSOLUTE,
+      PATH_ROOTLESS,
+      PATH_EMPTY,
     ]);
 
     // SCHEME
-    this.SCHEME = new EveryRule([
-      this.ALPHA,
+    let SCHEME = this.SCHEME = new EveryRule([
+      parent.ALPHA,
       new OptionalRule(new ManyRule(new AnyRule([
-        this.ALPHA,
-        this.DIGIT,
+        parent.ALPHA,
+        parent.DIGIT,
         new AnyOfRule("+-."),
       ])))
     ]);
 
     // query         = *( pchar / "/" / "?" )
-    this.QUERY = new OptionalRule(new ManyRule(new AnyRule([this.PCHAR, this.SLASH, this.QUESTION])));
+    let QUERY = this.QUERY = new OptionalRule(new ManyRule(new AnyRule([PCHAR, parent.SLASH, parent.QUESTION])));
     // fragment      = *( pchar / "/" / "?" )
-    this.FRAGMENT = this.QUERY;
+    this.FRAGMENT = QUERY;
 
     // absolute-URI  = scheme ":" hier-part [ "?" query ]
     this.ABSOLUTE_URI = new EveryRule([
-      this.SCHEME,
-      this.COLON,
-      this.HIER_PART,
-      new OptionalRule(new EveryRule([this.QUESTION, this.QUERY]))
+      SCHEME,
+      parent.COLON,
+      HIER_PART,
+      new OptionalRule(new EveryRule([parent.QUESTION, QUERY]))
     ]);
   }
+
+  // basic parsing rules
+  public parent: RFC5234;
 
   public PORT: Rule;
 
@@ -503,7 +507,7 @@ export class URI extends URIParser {
     index = range.end;
 
     // ":"
-    if (!this.COLON.test(buffer, index, range)) return false;
+    if (!this.parent.COLON.test(buffer, index, range)) return false;
     index++;
 
     // HIER_PART
@@ -512,7 +516,7 @@ export class URI extends URIParser {
     index = range.end;
 
     // query
-    if (this.QUESTION.test(buffer, index, range)) {
+    if (this.parent.QUESTION.test(buffer, index, range)) {
       index++;
       if (this.QUERY.test(buffer, index, range)) {
         uri.query = range.toString();
@@ -521,7 +525,7 @@ export class URI extends URIParser {
     }
 
     // fragment
-    if (this.HASH.test(buffer, index, range)) {
+    if (this.parent.HASH.test(buffer, index, range)) {
       index++;
       if (this.FRAGMENT.test(buffer, index, range)) {
         uri.fragment = range.toString();

@@ -10,9 +10,9 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@as-pect/cli": "^7.0.8",
-    "@assemblyscript/loader": "^0.21.4",
-    "assemblyscript": "^0.21.4"
+    "@as-pect/cli": "^8.0.0",
+    "@assemblyscript/loader": "^0.24.1",
+    "assemblyscript": "^0.24.1"
   },
   "type": "module",
   "exports": {
