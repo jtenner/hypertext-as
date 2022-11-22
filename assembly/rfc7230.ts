@@ -5,10 +5,11 @@ import { URIParser } from "./rfc3986";
 export class HTTPParser  {
   constructor() {
 
-    let parent = this.parent = new URIParser();
+    let uriParser = this.uriParser = new URIParser();
+    let rfc5234 = uriParser.rfc5234;
 
     //      RWS            = 1*( SP / HTAB )
-    let RWS = this.RWS = new ManyRule(new AnyRule([parent.parent.SP, parent.parent.HTAB]));
+    let RWS = this.RWS = new ManyRule(new AnyRule([rfc5234.SP, rfc5234.HTAB]));
     //      OWS            = *( SP / HTAB )
     let OWS = this.OWS = new OptionalRule(RWS);
     //      BWS            = OWS
@@ -18,8 +19,8 @@ export class HTTPParser  {
     //           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
     let TCHAR = this.TCHAR = new AnyRule([
       new AnyOfRule("!#$%&'*+-.^_`|~"),
-      parent.parent.DIGIT,
-      parent.parent.ALPHA,
+      rfc5234.DIGIT,
+      rfc5234.ALPHA,
     ]);
 
     // token = 1*tchar
@@ -29,22 +30,22 @@ export class HTTPParser  {
     let METHOD = this.METHOD = TOKEN;
 
     // absolute-path = 1*( "/" segment )
-    let ABSOLUTE_PATH = this.ABSOLUTE_PATH = new ManyRule(new EveryRule([parent.parent.SLASH, parent.SEGMENT]));
+    let ABSOLUTE_PATH = this.ABSOLUTE_PATH = new ManyRule(new EveryRule([rfc5234.SLASH, uriParser.SEGMENT]));
 
     // origin-form = absolute-path [ "?" query ]
     let ORIGIN_FORM = this.ORIGIN_FORM = new EveryRule([
       ABSOLUTE_PATH,
-      new OptionalRule(new EveryRule([parent.parent.QUESTION, parent.QUERY]))
+      new OptionalRule(new EveryRule([rfc5234.QUESTION, uriParser.QUERY]))
     ]);
 
     // absolute-form = absolute-uri
-    let ABSOLUTE_FORM = this.ABSOLUTE_FORM = parent.ABSOLUTE_URI;
+    let ABSOLUTE_FORM = this.ABSOLUTE_FORM = uriParser.ABSOLUTE_URI;
 
     // authority-form = authority
-    let AUTHORITY_FORM = this.AUTHORITY_FORM = parent.AUTHORITY;
+    let AUTHORITY_FORM = this.AUTHORITY_FORM = uriParser.AUTHORITY;
 
     // asterisk-form = "*"
-    let ASTERISK_FORM = this.ASTERISK_FORM = parent.parent.ASTERISK;
+    let ASTERISK_FORM = this.ASTERISK_FORM = rfc5234.ASTERISK;
 
     // request-target = origin-form / absolute-form / authority-form / asterisk-form
     let REQUEST_TARGET = this.REQUEST_TARGET = new AnyRule([
@@ -60,45 +61,45 @@ export class HTTPParser  {
     // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
     let HTTP_VERSION = this.HTTP_VERSION = new EveryRule([
       HTTP_NAME,
-      parent.parent.SLASH,
-      parent.parent.DIGIT,
-      parent.parent.DOT,
-      parent.parent.DIGIT,
+      rfc5234.SLASH,
+      rfc5234.DIGIT,
+      rfc5234.DOT,
+      rfc5234.DIGIT,
     ]);
 
 
     // request-line = method SP request-target SP HTTP-version CRLF
    let REQUEST_LINE = this.REQUEST_LINE = new EveryRule([
       METHOD,
-      parent.parent.SP,
+      rfc5234.SP,
       REQUEST_TARGET,
-      parent.parent.SP,
+      rfc5234.SP,
       HTTP_VERSION,
-      parent.parent.CRLF,
+      rfc5234.CRLF,
     ]);
 
     // status-code = 3DIGIT
-    let STATUS_CODE = this.STATUS_CODE = new CountRule(parent.parent.DIGIT, 3);
+    let STATUS_CODE = this.STATUS_CODE = new CountRule(rfc5234.DIGIT, 3);
 
     // obs-text = %x80-FF
     let OBS_TEXT = this.OBS_TEXT = new BetweenInclusiveRule(0x80, 0xFF);
 
     // reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
     let REASON_PHRASE = this.REASON_PHRASE = new OptionalRule(new ManyRule(new AnyRule([
-      parent.parent.HTAB,
-      parent.parent.SP,
-      parent.parent.VCHAR,
+      rfc5234.HTAB,
+      rfc5234.SP,
+      rfc5234.VCHAR,
       OBS_TEXT,
     ])));
 
     // status-line = HTTP-version SP status-code SP reason-phrase CRLF
     let STATUS_LINE = this.STATUS_LINE = new EveryRule([
       HTTP_VERSION,
-      parent.parent.SP,
+      rfc5234.SP,
       STATUS_CODE,
-      parent.parent.SP,
+      rfc5234.SP,
       REASON_PHRASE,
-      parent.parent.CRLF,
+      rfc5234.CRLF,
     ]);
 
     // start-line = request-line / status-line
@@ -111,21 +112,21 @@ export class HTTPParser  {
     let FIELD_NAME = this.FIELD_NAME = TOKEN;
 
     // field-vchar = VCHAR / obs-text
-    let FIELD_VCHAR = this.FIELD_VCHAR = new AnyRule([parent.parent.VCHAR, OBS_TEXT]);
+    let FIELD_VCHAR = this.FIELD_VCHAR = new AnyRule([rfc5234.VCHAR, OBS_TEXT]);
 
     // field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
     let FIELD_CONTENT = this.FIELD_CONTENT = new EveryRule([
       FIELD_VCHAR,
       new OptionalRule(new EveryRule([
-        new ManyRule(parent.parent.WSP),
+        new ManyRule(rfc5234.WSP),
         FIELD_VCHAR,
       ])),
     ]);
 
     // obs-fold = CRLF 1*( SP / HTAB )
     let OBS_FOLD = this.OBS_FOLD = new EveryRule([
-      parent.parent.CRLF,
-      new ManyRule(parent.parent.WSP),
+      rfc5234.CRLF,
+      new ManyRule(rfc5234.WSP),
     ]);
 
     // field-value = *( field-content / obs-fold )
@@ -137,25 +138,25 @@ export class HTTPParser  {
     // header-field = field-name ":" OWS field-value OWS
     let HEADER_FIELD = this.HEADER_FIELD = new EveryRule([
       FIELD_NAME,
-      parent.parent.COLON,
+      rfc5234.COLON,
       OWS,
       FIELD_VALUE,
       OWS,
     ]);
 
-    let MESSAGE_BODY = this.MESSAGE_BODY = new OptionalRule(new ManyRule(parent.parent.OCTET));
+    let MESSAGE_BODY = this.MESSAGE_BODY = new OptionalRule(new ManyRule(rfc5234.OCTET));
 
     // HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
     this.HTTP_MESSAGE = new EveryRule([
       START_LINE,
-      new ManyRule(new OptionalRule(new EveryRule([HEADER_FIELD, parent.parent.CRLF]))),
-      parent.parent.CRLF,
+      new ManyRule(new OptionalRule(new EveryRule([HEADER_FIELD, rfc5234.CRLF]))),
+      rfc5234.CRLF,
       MESSAGE_BODY,
     ]);
 
   }
 
-  public parent: URIParser;
+  public uriParser: URIParser;
   //      RWS            = 1*( SP / HTAB )
   public RWS: Rule;
   //      OWS            = *( SP / HTAB )
@@ -339,6 +340,7 @@ export class Request extends HTTPParser {
    */
   parse_request(buffer: ByteSink, req: Request): bool {
     let range = new Range(0, 0, buffer);
+    let rfc5234 = this.uriParser.rfc5234;
     // Get the request line
     // request-line = method SP request-target SP HTTP-version CRLF
 
@@ -349,7 +351,7 @@ export class Request extends HTTPParser {
     let index = range.end;
 
     // whitespace, and advance the cursor
-    if (!this.parent.parent.SP.test(buffer, index, range)) return false;
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
     index = range.end;
 
     // get the request target
@@ -359,7 +361,7 @@ export class Request extends HTTPParser {
     index = range.end;
 
     // whitespace, and advance the cursor
-    if (!this.parent.parent.SP.test(buffer, index, range)) return false;
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
     index = range.end;
 
     // version
@@ -369,7 +371,7 @@ export class Request extends HTTPParser {
     index = range.end;
 
     // CRLF
-    if (!this.parent.parent.CRLF.test(buffer, index, range)) return false;
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
     index = range.end;
 
     req.headers = new Map<string, string>();
@@ -383,7 +385,7 @@ export class Request extends HTTPParser {
       header_index = range.end;
 
       // ":"
-      if (!this.parent.parent.COLON.test(buffer, header_index, range)) break;
+      if (!rfc5234.COLON.test(buffer, header_index, range)) break;
       header_index++;
 
       // optional whitespace
@@ -404,7 +406,7 @@ export class Request extends HTTPParser {
     }
 
     // set the body range
-    if (!this.parent.parent.CRLF.test(buffer, index, range)) return false;
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
     let copy = range.copy();
     copy.start = range.end;
     copy.end = buffer.byteLength;
@@ -469,6 +471,8 @@ export class Response extends HTTPParser {
    */
   parse_response(buffer: ByteSink, res: Response): bool {
     let range = new Range(0, 0, buffer);
+    let rfc5234 = this.uriParser.rfc5234;
+
     // HTTP-version SP status-code SP reason-phrase CRLF
     // version
     if (!this.HTTP_VERSION.test(buffer, 0, range)) return false;
@@ -477,7 +481,7 @@ export class Response extends HTTPParser {
     let index = range.end;
 
     // SP
-    if (!this.parent.parent.SP.test(buffer, index, range)) return false;
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
     index = range.end;
 
     // status-code
@@ -487,7 +491,7 @@ export class Response extends HTTPParser {
     index = range.end;
 
     // SP
-    if (!this.parent.parent.SP.test(buffer, index, range)) return false;
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
     index = range.end;
 
     // reason
@@ -496,7 +500,7 @@ export class Response extends HTTPParser {
     }
 
     // CRLF
-    if (!this.parent.parent.CRLF.test(buffer, index, range)) return false;
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
     index += 2;
 
     res.headers = new Map<string, string>();
@@ -510,7 +514,7 @@ export class Response extends HTTPParser {
       header_index = range.end;
 
       // ":"
-      if (!this.parent.parent.COLON.test(buffer, header_index, range)) break;
+      if (!rfc5234.COLON.test(buffer, header_index, range)) break;
       header_index++;
 
       // optional whitespace
@@ -531,7 +535,7 @@ export class Response extends HTTPParser {
     }
 
     // set the body range
-    if (!this.parent.parent.CRLF.test(buffer, index, range)) return false;
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
     let copy = range.copy();
     copy.start = range.end;
     copy.end = buffer.byteLength;

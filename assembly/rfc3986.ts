@@ -3,7 +3,7 @@ import { RFC5234 } from "./rfc5234";
 
 export class URIParser {
   constructor() {
-    let parent = this.parent = new RFC5234()
+    let parent = this.rfc5234 = new RFC5234()
 
     let PORT = this.PORT = new ManyRule(parent.DIGIT);
 
@@ -314,7 +314,7 @@ export class URIParser {
   }
 
   // basic parsing rules
-  public parent: RFC5234;
+  public rfc5234: RFC5234;
 
   public PORT: Rule;
 
@@ -507,7 +507,7 @@ export class URI extends URIParser {
     index = range.end;
 
     // ":"
-    if (!this.parent.COLON.test(buffer, index, range)) return false;
+    if (!this.rfc5234.COLON.test(buffer, index, range)) return false;
     index++;
 
     // HIER_PART
@@ -516,7 +516,7 @@ export class URI extends URIParser {
     index = range.end;
 
     // query
-    if (this.parent.QUESTION.test(buffer, index, range)) {
+    if (this.rfc5234.QUESTION.test(buffer, index, range)) {
       index++;
       if (this.QUERY.test(buffer, index, range)) {
         uri.query = range.toString();
@@ -525,7 +525,7 @@ export class URI extends URIParser {
     }
 
     // fragment
-    if (this.parent.HASH.test(buffer, index, range)) {
+    if (this.rfc5234.HASH.test(buffer, index, range)) {
       index++;
       if (this.FRAGMENT.test(buffer, index, range)) {
         uri.fragment = range.toString();
