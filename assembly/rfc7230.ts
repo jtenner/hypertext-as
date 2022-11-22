@@ -1,159 +1,251 @@
-import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range } from "byte-parse-as/assembly";
-import { ABSOLUTE_URI, AUTHORITY, QUERY, SEGMENT, URI } from "./rfc3986";
-import { ALPHA, CRLF, DIGIT, HTAB, OCTET, SP, VCHAR, WSP } from "./rfc5234";
-import { ASTERISK, COLON, DOT, QUESTION, SLASH } from "./util";
-
-//      RWS            = 1*( SP / HTAB )
-export const RWS = new ManyRule(new AnyRule([SP, HTAB]));
-//      OWS            = *( SP / HTAB )
-export const OWS = new OptionalRule(RWS);
-//      BWS            = OWS
-export const BWS = OWS;
-
-//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-export const TCHAR = new AnyRule([
-  new AnyOfRule("!#$%&'*+-.^_`|~"),
-  DIGIT,
-  ALPHA,
-]);
-
-// token = 1*tchar
-export const TOKEN = new ManyRule(TCHAR);
-
-// method = token
-export const METHOD = TOKEN;
-
-// absolute-path = 1*( "/" segment )
-export const ABSOLUTE_PATH = new ManyRule(new EveryRule([SLASH, SEGMENT]));
-
-// origin-form = absolute-path [ "?" query ]
-export const ORIGIN_FORM = new EveryRule([
-  ABSOLUTE_PATH,
-  new OptionalRule(new EveryRule([QUESTION, QUERY]))
-]);
-
-// absolute-form = absolute-uri
-export const ABSOLUTE_FORM = ABSOLUTE_URI;
-
-// authority-form = authority
-export const AUTHORITY_FORM = AUTHORITY;
-
-// asterisk-form = "*"
-export const ASTERISK_FORM = ASTERISK;
-
-// request-target = origin-form / absolute-form / authority-form / asterisk-form
-export const REQUEST_TARGET = new AnyRule([
-  ORIGIN_FORM,
-  ABSOLUTE_FORM,
-  AUTHORITY_FORM,
-  ASTERISK_FORM,
-]);
-
-//HTTP-name     = %x48.54.54.50 ; "HTTP", case-sensitive
-export const HTTP_NAME = new KeywordRule("HTTP");
-
-// HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
-export const HTTP_VERSION = new EveryRule([
-  HTTP_NAME,
-  SLASH,
-  DIGIT,
-  DOT,
-  DIGIT,
-]);
+import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range, Rule } from "byte-parse-as/assembly";
+import { URIParser } from "./rfc3986";
 
 
-// request-line = method SP request-target SP HTTP-version CRLF
-export const REQUEST_LINE = new EveryRule([
-  METHOD,
-  SP,
-  REQUEST_TARGET,
-  SP,
-  HTTP_VERSION,
-  CRLF,
-]);
+export class HTTPParser  {
+  constructor() {
 
-// status-code = 3DIGIT
-export const STATUS_CODE = new CountRule(DIGIT, 3);
+    let uriParser = this.uriParser = new URIParser();
+    let rfc5234 = uriParser.rfc5234;
 
-// obs-text = %x80-FF
-export const OBS_TEXT = new BetweenInclusiveRule(0x80, 0xFF);
+    //      RWS            = 1*( SP / HTAB )
+    let RWS = this.RWS = new ManyRule(new AnyRule([rfc5234.SP, rfc5234.HTAB]));
+    //      OWS            = *( SP / HTAB )
+    let OWS = this.OWS = new OptionalRule(RWS);
+    //      BWS            = OWS
+    let BWS = this.BWS = OWS;
 
-// reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
-export const REASON_PHRASE = new OptionalRule(new ManyRule(new AnyRule([
-  HTAB,
-  SP,
-  VCHAR,
-  OBS_TEXT,
-])));
+    //   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    //           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    let TCHAR = this.TCHAR = new AnyRule([
+      new AnyOfRule("!#$%&'*+-.^_`|~"),
+      rfc5234.DIGIT,
+      rfc5234.ALPHA,
+    ]);
 
-// status-line = HTTP-version SP status-code SP reason-phrase CRLF
-export const STATUS_LINE = new EveryRule([
-  HTTP_VERSION,
-  SP,
-  STATUS_CODE,
-  SP,
-  REASON_PHRASE,
-  CRLF,
-]);
+    // token = 1*tchar
+    let TOKEN = this.TOKEN = new ManyRule(TCHAR);
 
-// start-line = request-line / status-line
-export const START_LINE = new AnyRule([
-  REQUEST_LINE,
-  STATUS_LINE,
-]);
+    // method = token
+    let METHOD = this.METHOD = TOKEN;
 
-// field-name = token
-export const FIELD_NAME = TOKEN;
+    // absolute-path = 1*( "/" segment )
+    let ABSOLUTE_PATH = this.ABSOLUTE_PATH = new ManyRule(new EveryRule([rfc5234.SLASH, uriParser.SEGMENT]));
 
-// field-vchar = VCHAR / obs-text
-export const FIELD_VCHAR = new AnyRule([VCHAR, OBS_TEXT]);
+    // origin-form = absolute-path [ "?" query ]
+    let ORIGIN_FORM = this.ORIGIN_FORM = new EveryRule([
+      ABSOLUTE_PATH,
+      new OptionalRule(new EveryRule([rfc5234.QUESTION, uriParser.QUERY]))
+    ]);
 
-// field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
-export const FIELD_CONTENT = new EveryRule([
-  FIELD_VCHAR,
-  new OptionalRule(new EveryRule([
-    new ManyRule(WSP),
-    FIELD_VCHAR,
-  ])),
-]);
+    // absolute-form = absolute-uri
+    let ABSOLUTE_FORM = this.ABSOLUTE_FORM = uriParser.ABSOLUTE_URI;
 
-// obs-fold = CRLF 1*( SP / HTAB )
-export const OBS_FOLD = new EveryRule([
-  CRLF,
-  new ManyRule(WSP),
-]);
+    // authority-form = authority
+    let AUTHORITY_FORM = this.AUTHORITY_FORM = uriParser.AUTHORITY;
 
-// field-value = *( field-content / obs-fold )
-export const FIELD_VALUE = new OptionalRule(new ManyRule(new AnyRule([
-  FIELD_CONTENT,
-  OBS_FOLD,
-])));
+    // asterisk-form = "*"
+    let ASTERISK_FORM = this.ASTERISK_FORM = rfc5234.ASTERISK;
 
-// header-field = field-name ":" OWS field-value OWS
-export const HEADER_FIELD = new EveryRule([
-  FIELD_NAME,
-  COLON,
-  OWS,
-  FIELD_VALUE,
-  OWS,
-]);
+    // request-target = origin-form / absolute-form / authority-form / asterisk-form
+    let REQUEST_TARGET = this.REQUEST_TARGET = new AnyRule([
+      ORIGIN_FORM,
+      ABSOLUTE_FORM,
+      AUTHORITY_FORM,
+      ASTERISK_FORM,
+    ]);
 
-export const MESSAGE_BODY = new OptionalRule(new ManyRule(OCTET));
+    //HTTP-name     = %x48.54.54.50 ; "HTTP", case-sensitive
+    let HTTP_NAME = this.HTTP_NAME = new KeywordRule("HTTP");
 
-// HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
-export const HTTP_MESSAGE = new EveryRule([
-  START_LINE,
-  new ManyRule(new OptionalRule(new EveryRule([HEADER_FIELD, CRLF]))),
-  CRLF,
-  MESSAGE_BODY,
-]);
+    // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
+    let HTTP_VERSION = this.HTTP_VERSION = new EveryRule([
+      HTTP_NAME,
+      rfc5234.SLASH,
+      rfc5234.DIGIT,
+      rfc5234.DOT,
+      rfc5234.DIGIT,
+    ]);
 
-export class Request {
+
+    // request-line = method SP request-target SP HTTP-version CRLF
+   let REQUEST_LINE = this.REQUEST_LINE = new EveryRule([
+      METHOD,
+      rfc5234.SP,
+      REQUEST_TARGET,
+      rfc5234.SP,
+      HTTP_VERSION,
+      rfc5234.CRLF,
+    ]);
+
+    // status-code = 3DIGIT
+    let STATUS_CODE = this.STATUS_CODE = new CountRule(rfc5234.DIGIT, 3);
+
+    // obs-text = %x80-FF
+    let OBS_TEXT = this.OBS_TEXT = new BetweenInclusiveRule(0x80, 0xFF);
+
+    // reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
+    let REASON_PHRASE = this.REASON_PHRASE = new OptionalRule(new ManyRule(new AnyRule([
+      rfc5234.HTAB,
+      rfc5234.SP,
+      rfc5234.VCHAR,
+      OBS_TEXT,
+    ])));
+
+    // status-line = HTTP-version SP status-code SP reason-phrase CRLF
+    let STATUS_LINE = this.STATUS_LINE = new EveryRule([
+      HTTP_VERSION,
+      rfc5234.SP,
+      STATUS_CODE,
+      rfc5234.SP,
+      REASON_PHRASE,
+      rfc5234.CRLF,
+    ]);
+
+    // start-line = request-line / status-line
+    let START_LINE = this.START_LINE = new AnyRule([
+      REQUEST_LINE,
+      STATUS_LINE,
+    ]);
+
+    // field-name = token
+    let FIELD_NAME = this.FIELD_NAME = TOKEN;
+
+    // field-vchar = VCHAR / obs-text
+    let FIELD_VCHAR = this.FIELD_VCHAR = new AnyRule([rfc5234.VCHAR, OBS_TEXT]);
+
+    // field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+    let FIELD_CONTENT = this.FIELD_CONTENT = new EveryRule([
+      FIELD_VCHAR,
+      new OptionalRule(new EveryRule([
+        new ManyRule(rfc5234.WSP),
+        FIELD_VCHAR,
+      ])),
+    ]);
+
+    // obs-fold = CRLF 1*( SP / HTAB )
+    let OBS_FOLD = this.OBS_FOLD = new EveryRule([
+      rfc5234.CRLF,
+      new ManyRule(rfc5234.WSP),
+    ]);
+
+    // field-value = *( field-content / obs-fold )
+    let FIELD_VALUE = this.FIELD_VALUE = new OptionalRule(new ManyRule(new AnyRule([
+      FIELD_CONTENT,
+      OBS_FOLD,
+    ])));
+
+    // header-field = field-name ":" OWS field-value OWS
+    let HEADER_FIELD = this.HEADER_FIELD = new EveryRule([
+      FIELD_NAME,
+      rfc5234.COLON,
+      OWS,
+      FIELD_VALUE,
+      OWS,
+    ]);
+
+    let MESSAGE_BODY = this.MESSAGE_BODY = new OptionalRule(new ManyRule(rfc5234.OCTET));
+
+    // HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
+    this.HTTP_MESSAGE = new EveryRule([
+      START_LINE,
+      new ManyRule(new OptionalRule(new EveryRule([HEADER_FIELD, rfc5234.CRLF]))),
+      rfc5234.CRLF,
+      MESSAGE_BODY,
+    ]);
+
+  }
+
+  public uriParser: URIParser;
+  //      RWS            = 1*( SP / HTAB )
+  public RWS: Rule;
+  //      OWS            = *( SP / HTAB )
+  public OWS: Rule;
+  //      BWS            = OWS
+  public BWS: Rule;
+
+  //   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+  //           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+  public TCHAR: Rule;
+
+  // token = 1*tchar
+  public TOKEN: Rule;
+
+  // method = token
+  public METHOD: Rule;
+
+  // absolute-path = 1*( "/" segment )
+  public ABSOLUTE_PATH: Rule;
+
+  // origin-form = absolute-path [ "?" query ]
+  public ORIGIN_FORM: Rule;
+
+  // absolute-form = absolute-uri
+  public ABSOLUTE_FORM: Rule;
+
+  // authority-form = authority
+  public AUTHORITY_FORM: Rule;
+
+  // asterisk-form = "*"
+  public ASTERISK_FORM: Rule;
+
+  // request-target = origin-form / absolute-form / authority-form / asterisk-form
+  public REQUEST_TARGET: Rule;
+
+  //HTTP-name     = %x48.54.54.50 ; "HTTP", case-sensitive
+  public HTTP_NAME: Rule;
+
+  // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
+  public HTTP_VERSION: Rule;
+
+
+  // request-line = method SP request-target SP HTTP-version CRLF
+  public REQUEST_LINE: Rule;
+
+  // status-code = 3DIGIT
+  public STATUS_CODE: Rule;
+
+  // obs-text = %x80-FF
+  public OBS_TEXT: Rule;
+
+  // reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
+  public REASON_PHRASE: Rule;
+
+  // status-line = HTTP-version SP status-code SP reason-phrase CRLF
+  public STATUS_LINE: Rule;
+
+  // start-line = request-line / status-line
+  public START_LINE: Rule;
+
+  // field-name = token
+  public FIELD_NAME: Rule;
+
+  // field-vchar = VCHAR / obs-text
+  public FIELD_VCHAR: Rule;
+
+  // field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+  public FIELD_CONTENT: Rule;
+
+  // obs-fold = CRLF 1*( SP / HTAB )
+  public OBS_FOLD: Rule;
+
+  // field-value = *( field-content / obs-fold )
+  public FIELD_VALUE: Rule;
+
+  // header-field = field-name ":" OWS field-value OWS
+  public HEADER_FIELD: Rule;
+
+  public MESSAGE_BODY: Rule;
+
+  // HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
+  public HTTP_MESSAGE: Rule;
+}
+
+export class Request extends HTTPParser {
   static parse(buffer: ByteSink): Request {
     let req = new Request();
     req._parsed = true;
-    req.valid = parse_request(buffer, req);
+    req.valid = req.parse_request(buffer, req);
     return req;
   }
 
@@ -196,7 +288,9 @@ export class Request {
   /** All the headers for this request. */
   public headers: Map<string, string> | null = null;
 
-  constructor() {}
+  constructor() {
+    super();
+  }
 
   /** Encode this request into the given bytesink, returning true if the buffer was written. */
   encode(buffer: ByteSink): bool {
@@ -239,93 +333,95 @@ export class Request {
 
     return true;
   }
-}
+  
+  /**
+   * Parse a request within the given buffer, and populate the `Request`
+   * object provided byref. It returns true if the request is valid.
+   */
+  parse_request(buffer: ByteSink, req: Request): bool {
+    let range = new Range(0, 0, buffer);
+    let rfc5234 = this.uriParser.rfc5234;
+    // Get the request line
+    // request-line = method SP request-target SP HTTP-version CRLF
 
-/**
- * Parse a request within the given buffer, and populate the `Request`
- * object provided byref. It returns true if the request is valid.
- */
-export function parse_request(buffer: ByteSink, req: Request): bool {
-  let range = new Range(0, 0, buffer);
-  // Get the request line
-  // request-line = method SP request-target SP HTTP-version CRLF
+    // Get the method and advance the cursor
+    if (!this.METHOD.test(buffer, 0, range)) return false;
+    let method = range.toString();
+    req.method = method;
+    let index = range.end;
 
-  // Get the method and advance the cursor
-  if (!METHOD.test(buffer, 0, range)) return false;
-  let method = range.toString();
-  req.method = method;
-  let index = range.end;
+    // whitespace, and advance the cursor
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
+    index = range.end;
 
-  // whitespace, and advance the cursor
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
+    // get the request target
+    if (!this.REQUEST_TARGET.test(buffer, index, range)) return false;
+    let target = range.toString();
+    req.target = target;
+    index = range.end;
 
-  // get the request target
-  if (!REQUEST_TARGET.test(buffer, index, range)) return false;
-  let target = range.toString();
-  req.target = target;
-  index = range.end;
+    // whitespace, and advance the cursor
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
+    index = range.end;
 
-  // whitespace, and advance the cursor
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
+    // version
+    if (!this.HTTP_VERSION.test(buffer, index, range)) return false;
+    let version = range.toString();
+    req.version = version;
+    index = range.end;
 
-  // version
-  if (!HTTP_VERSION.test(buffer, index, range)) return false;
-  let version = range.toString();
-  req.version = version;
-  index = range.end;
+    // CRLF
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
+    index = range.end;
 
-  // CRLF
-  if (!CRLF.test(buffer, index, range)) return false;
-  index = range.end;
+    req.headers = new Map<string, string>();
+    // headers
+    while (true) {
 
-  req.headers = new Map<string, string>();
-  // headers
-  while (true) {
+      // header-field = field-name ":" OWS field-value OWS
+      let header_index = index;
+      if (!this.FIELD_NAME.test(buffer, header_index, range)) break;
+      let header_name = range.toString();
+      header_index = range.end;
 
-    // header-field = field-name ":" OWS field-value OWS
-    let header_index = index;
-    if (!FIELD_NAME.test(buffer, header_index, range)) break;
-    let header_name = range.toString();
-    header_index = range.end;
+      // ":"
+      if (!rfc5234.COLON.test(buffer, header_index, range)) break;
+      header_index++;
 
-    // ":"
-    if (!COLON.test(buffer, header_index, range)) break;
-    header_index++;
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
 
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
+      if (!this.FIELD_VALUE.test(buffer, header_index, range)) break;
+      let header_value = range.toString();
+      header_index = range.end;
 
-    if (!FIELD_VALUE.test(buffer, header_index, range)) break;
-    let header_value = range.toString();
-    header_index = range.end;
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
 
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
+      // set the header
+      req.headers!.set(header_name, header_value);
 
-    // set the header
-    req.headers!.set(header_name, header_value);
+      // advance the cursor
+      index = header_index;
+    }
 
-    // advance the cursor
-    index = header_index;
+    // set the body range
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
+    let copy = range.copy();
+    copy.start = range.end;
+    copy.end = buffer.byteLength;
+    req.body = copy;
+
+    return true;
   }
-
-  // set the body range
-  if (!CRLF.test(buffer, index, range)) return false;
-  let copy = range.copy();
-  copy.start = range.end;
-  copy.end = buffer.byteLength;
-  req.body = copy;
-
-  return true;
 }
 
-export class Response {
+
+export class Response extends HTTPParser {
   static parse(buffer: ByteSink): Response {
     let res = new Response();
     res._parsed = true;
-    res.valid = parse_response(buffer, res);
+    res.valid = res.parse_response(buffer, res);
     return res;
   }
 
@@ -365,82 +461,87 @@ export class Response {
     }
   }
 
-  constructor() { }
-}
+  constructor() {
+    super();
+  }
+    
+  /**
+   * Parse a response from the given buffer, and populate the
+   * given response object, returning true if parsing was successful.
+   */
+  parse_response(buffer: ByteSink, res: Response): bool {
+    let range = new Range(0, 0, buffer);
+    let rfc5234 = this.uriParser.rfc5234;
 
-/**
- * Parse a response from the given buffer, and populate the
- * given response object, returning true if parsing was successful.
- */
-export function parse_response(buffer: ByteSink, res: Response): bool {
-  let range = new Range(0, 0, buffer);
-  // HTTP-version SP status-code SP reason-phrase CRLF
-  // version
-  if (!HTTP_VERSION.test(buffer, 0, range)) return false;
-  let version = range.toString();
-  res.version = version;
-  let index = range.end;
+    // HTTP-version SP status-code SP reason-phrase CRLF
+    // version
+    if (!this.HTTP_VERSION.test(buffer, 0, range)) return false;
+    let version = range.toString();
+    res.version = version;
+    let index = range.end;
 
-  // SP
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
-
-  // status-code
-  if (!STATUS_CODE.test(buffer, index, range)) return false;
-  let status = <i32>parseInt(range.toString());
-  res.status = status;
-  index = range.end;
-
-  // SP
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
-
-  // reason
-  if (REASON_PHRASE.test(buffer, index, range)) {
+    // SP
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
     index = range.end;
+
+    // status-code
+    if (!this.STATUS_CODE.test(buffer, index, range)) return false;
+    let status = <i32>parseInt(range.toString());
+    res.status = status;
+    index = range.end;
+
+    // SP
+    if (!rfc5234.SP.test(buffer, index, range)) return false;
+    index = range.end;
+
+    // reason
+    if (this.REASON_PHRASE.test(buffer, index, range)) {
+      index = range.end;
+    }
+
+    // CRLF
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
+    index += 2;
+
+    res.headers = new Map<string, string>();
+    // headers
+    while (true) {
+
+      // header-field = field-name ":" OWS field-value OWS
+      let header_index = index;
+      if (!this.FIELD_NAME.test(buffer, header_index, range)) break;
+      let header_name = range.toString();
+      header_index = range.end;
+
+      // ":"
+      if (!rfc5234.COLON.test(buffer, header_index, range)) break;
+      header_index++;
+
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
+
+      if (!this.FIELD_VALUE.test(buffer, header_index, range)) break;
+      let header_value = range.toString();
+      header_index = range.end;
+
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
+
+      // set the header
+      res.headers!.set(header_name, header_value);
+
+      // advance the cursor
+      index = header_index;
+    }
+
+    // set the body range
+    if (!rfc5234.CRLF.test(buffer, index, range)) return false;
+    let copy = range.copy();
+    copy.start = range.end;
+    copy.end = buffer.byteLength;
+    res.body = copy;
+
+    return true;
   }
 
-  // CRLF
-  if (!CRLF.test(buffer, index, range)) return false;
-  index += 2;
-
-  res.headers = new Map<string, string>();
-  // headers
-  while (true) {
-
-    // header-field = field-name ":" OWS field-value OWS
-    let header_index = index;
-    if (!FIELD_NAME.test(buffer, header_index, range)) break;
-    let header_name = range.toString();
-    header_index = range.end;
-
-    // ":"
-    if (!COLON.test(buffer, header_index, range)) break;
-    header_index++;
-
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
-
-    if (!FIELD_VALUE.test(buffer, header_index, range)) break;
-    let header_value = range.toString();
-    header_index = range.end;
-
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
-
-    // set the header
-    res.headers!.set(header_name, header_value);
-
-    // advance the cursor
-    index = header_index;
-  }
-
-  // set the body range
-  if (!CRLF.test(buffer, index, range)) return false;
-  let copy = range.copy();
-  copy.start = range.end;
-  copy.end = buffer.byteLength;
-  res.body = copy;
-
-  return true;
 }
