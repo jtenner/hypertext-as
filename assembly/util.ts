@@ -1,31 +1,36 @@
-import { EqualsRule } from "byte-parse-as/assembly";
+import { EqualsRule, Rule } from "byte-parse-as/assembly";
 
-// ":"
-export const COLON = new EqualsRule(0x3A);
+export class UtilParsers {
+  constructor() {}
 
-// "["
-export const OPEN_BRACKET = new EqualsRule(0x5B);
-// "]"
-export const CLOSE_BRACKET = new EqualsRule(0x5D);
+  // ":"
+  public COLON: Rule = new EqualsRule(0x3A);
 
-// "1"
-export const ONE = new EqualsRule(0x01);
-// "2"
-export const TWO = new EqualsRule(0x32);
-// "5"
-export const FIVE = new EqualsRule(0x35);
+  // "["
+  public OPEN_BRACKET: Rule = new EqualsRule(0x5B);
+  // "]"
+  public CLOSE_BRACKET: Rule = new EqualsRule(0x5D);
 
-// "."
-export const DOT = new EqualsRule(0x2E);
+  // "1"
+  public ONE: Rule = new EqualsRule(0x01);
+  // "2"
+  public TWO: Rule = new EqualsRule(0x32);
+  // "5"
+  public FIVE: Rule = new EqualsRule(0x35);
 
-// "/"
-export const SLASH = new EqualsRule(0x2F);
+  // "."
+  public DOT: Rule = new EqualsRule(0x2E);
 
-// "?"
-export const QUESTION = new EqualsRule(0x3F);
+  // "/"
+  public SLASH: Rule = new EqualsRule(0x2F);
 
-// "#"
-export const HASH = new EqualsRule(0x23);
+  // "?"
+  public QUESTION: Rule = new EqualsRule(0x3F);
 
-// "*"
-export const ASTERISK = new EqualsRule(0x2A);
+  // "#"
+  public HASH: Rule = new EqualsRule(0x23);
+
+  // "*"
+  public ASTERISK: Rule = new EqualsRule(0x2A);
+}
+

@@ -1,159 +1,245 @@
-import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range } from "byte-parse-as/assembly";
-import { ABSOLUTE_URI, AUTHORITY, QUERY, SEGMENT, URI } from "./rfc3986";
-import { ALPHA, CRLF, DIGIT, HTAB, OCTET, SP, VCHAR, WSP } from "./rfc5234";
-import { ASTERISK, COLON, DOT, QUESTION, SLASH } from "./util";
+import { AnyOfRule, AnyRule, BetweenInclusiveRule, ByteSink, CountRule, EveryRule, KeywordRule, ManyRule, OptionalRule, Range, Rule } from "byte-parse-as/assembly";
+import { URIParser } from "./rfc3986";
 
-//      RWS            = 1*( SP / HTAB )
-export const RWS = new ManyRule(new AnyRule([SP, HTAB]));
-//      OWS            = *( SP / HTAB )
-export const OWS = new OptionalRule(RWS);
-//      BWS            = OWS
-export const BWS = OWS;
+export class HTTPParser extends URIParser {
+  constructor() {
+    super();
+    //      RWS            = 1*( SP / HTAB )
+    this.RWS = new ManyRule(new AnyRule([this.SP, this.HTAB]));
+    //      OWS            = *( SP / HTAB )
+    this.OWS = new OptionalRule(this.RWS);
+    //      BWS            = OWS
+    this.BWS = this.OWS;
 
-//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-export const TCHAR = new AnyRule([
-  new AnyOfRule("!#$%&'*+-.^_`|~"),
-  DIGIT,
-  ALPHA,
-]);
+    //   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    //           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    this.TCHAR = new AnyRule([
+      new AnyOfRule("!#$%&'*+-.^_`|~"),
+      this.DIGIT,
+      this.ALPHA,
+    ]);
 
-// token = 1*tchar
-export const TOKEN = new ManyRule(TCHAR);
+    // token = 1*tchar
+    this.TOKEN = new ManyRule(this.TCHAR);
 
-// method = token
-export const METHOD = TOKEN;
+    // method = token
+    this.METHOD = this.TOKEN;
 
-// absolute-path = 1*( "/" segment )
-export const ABSOLUTE_PATH = new ManyRule(new EveryRule([SLASH, SEGMENT]));
+    // absolute-path = 1*( "/" segment )
+    this.ABSOLUTE_PATH = new ManyRule(new EveryRule([this.SLASH, this.SEGMENT]));
 
-// origin-form = absolute-path [ "?" query ]
-export const ORIGIN_FORM = new EveryRule([
-  ABSOLUTE_PATH,
-  new OptionalRule(new EveryRule([QUESTION, QUERY]))
-]);
+    // origin-form = absolute-path [ "?" query ]
+    this.ORIGIN_FORM = new EveryRule([
+      this.ABSOLUTE_PATH,
+      new OptionalRule(new EveryRule([this.QUESTION, this.QUERY]))
+    ]);
 
-// absolute-form = absolute-uri
-export const ABSOLUTE_FORM = ABSOLUTE_URI;
+    // absolute-form = absolute-uri
+    this.ABSOLUTE_FORM = this.ABSOLUTE_URI;
 
-// authority-form = authority
-export const AUTHORITY_FORM = AUTHORITY;
+    // authority-form = authority
+    this.AUTHORITY_FORM = this.AUTHORITY;
 
-// asterisk-form = "*"
-export const ASTERISK_FORM = ASTERISK;
+    // asterisk-form = "*"
+    this.ASTERISK_FORM = this.ASTERISK;
 
-// request-target = origin-form / absolute-form / authority-form / asterisk-form
-export const REQUEST_TARGET = new AnyRule([
-  ORIGIN_FORM,
-  ABSOLUTE_FORM,
-  AUTHORITY_FORM,
-  ASTERISK_FORM,
-]);
+    // request-target = origin-form / absolute-form / authority-form / asterisk-form
+    this.REQUEST_TARGET = new AnyRule([
+      this.ORIGIN_FORM,
+      this.ABSOLUTE_FORM,
+      this.AUTHORITY_FORM,
+      this.ASTERISK_FORM,
+    ]);
 
-//HTTP-name     = %x48.54.54.50 ; "HTTP", case-sensitive
-export const HTTP_NAME = new KeywordRule("HTTP");
+    //HTTP-name     = %x48.54.54.50 ; "HTTP", case-sensitive
+    this.HTTP_NAME = new KeywordRule("HTTP");
 
-// HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
-export const HTTP_VERSION = new EveryRule([
-  HTTP_NAME,
-  SLASH,
-  DIGIT,
-  DOT,
-  DIGIT,
-]);
+    // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
+    this.HTTP_VERSION = new EveryRule([
+      this.HTTP_NAME,
+      this.SLASH,
+      this.DIGIT,
+      this.DOT,
+      this.DIGIT,
+    ]);
 
 
-// request-line = method SP request-target SP HTTP-version CRLF
-export const REQUEST_LINE = new EveryRule([
-  METHOD,
-  SP,
-  REQUEST_TARGET,
-  SP,
-  HTTP_VERSION,
-  CRLF,
-]);
+    // request-line = method SP request-target SP HTTP-version CRLF
+    this.REQUEST_LINE = new EveryRule([
+      this.METHOD,
+      this.SP,
+      this.REQUEST_TARGET,
+      this.SP,
+      this.HTTP_VERSION,
+      this.CRLF,
+    ]);
 
-// status-code = 3DIGIT
-export const STATUS_CODE = new CountRule(DIGIT, 3);
+    // status-code = 3DIGIT
+    this.STATUS_CODE = new CountRule(this.DIGIT, 3);
 
-// obs-text = %x80-FF
-export const OBS_TEXT = new BetweenInclusiveRule(0x80, 0xFF);
+    // obs-text = %x80-FF
+    this.OBS_TEXT = new BetweenInclusiveRule(0x80, 0xFF);
 
-// reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
-export const REASON_PHRASE = new OptionalRule(new ManyRule(new AnyRule([
-  HTAB,
-  SP,
-  VCHAR,
-  OBS_TEXT,
-])));
+    // reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
+    this.REASON_PHRASE = new OptionalRule(new ManyRule(new AnyRule([
+      this.HTAB,
+      this.SP,
+      this.VCHAR,
+      this.OBS_TEXT,
+    ])));
 
-// status-line = HTTP-version SP status-code SP reason-phrase CRLF
-export const STATUS_LINE = new EveryRule([
-  HTTP_VERSION,
-  SP,
-  STATUS_CODE,
-  SP,
-  REASON_PHRASE,
-  CRLF,
-]);
+    // status-line = HTTP-version SP status-code SP reason-phrase CRLF
+    this.STATUS_LINE = new EveryRule([
+      this.HTTP_VERSION,
+      this.SP,
+      this.STATUS_CODE,
+      this.SP,
+      this.REASON_PHRASE,
+      this.CRLF,
+    ]);
 
-// start-line = request-line / status-line
-export const START_LINE = new AnyRule([
-  REQUEST_LINE,
-  STATUS_LINE,
-]);
+    // start-line = request-line / status-line
+    this.START_LINE = new AnyRule([
+      this.REQUEST_LINE,
+      this.STATUS_LINE,
+    ]);
 
-// field-name = token
-export const FIELD_NAME = TOKEN;
+    // field-name = token
+    this.FIELD_NAME = this.TOKEN;
 
-// field-vchar = VCHAR / obs-text
-export const FIELD_VCHAR = new AnyRule([VCHAR, OBS_TEXT]);
+    // field-vchar = VCHAR / obs-text
+    this.FIELD_VCHAR = new AnyRule([this.VCHAR, this.OBS_TEXT]);
 
-// field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
-export const FIELD_CONTENT = new EveryRule([
-  FIELD_VCHAR,
-  new OptionalRule(new EveryRule([
-    new ManyRule(WSP),
-    FIELD_VCHAR,
-  ])),
-]);
+    // field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+    this.FIELD_CONTENT = new EveryRule([
+      this.FIELD_VCHAR,
+      new OptionalRule(new EveryRule([
+        new ManyRule(this.WSP),
+        this.FIELD_VCHAR,
+      ])),
+    ]);
 
-// obs-fold = CRLF 1*( SP / HTAB )
-export const OBS_FOLD = new EveryRule([
-  CRLF,
-  new ManyRule(WSP),
-]);
+    // obs-fold = CRLF 1*( SP / HTAB )
+    this.OBS_FOLD = new EveryRule([
+      this.CRLF,
+      new ManyRule(this.WSP),
+    ]);
 
-// field-value = *( field-content / obs-fold )
-export const FIELD_VALUE = new OptionalRule(new ManyRule(new AnyRule([
-  FIELD_CONTENT,
-  OBS_FOLD,
-])));
+    // field-value = *( field-content / obs-fold )
+    this.FIELD_VALUE = new OptionalRule(new ManyRule(new AnyRule([
+      this.FIELD_CONTENT,
+      this.OBS_FOLD,
+    ])));
 
-// header-field = field-name ":" OWS field-value OWS
-export const HEADER_FIELD = new EveryRule([
-  FIELD_NAME,
-  COLON,
-  OWS,
-  FIELD_VALUE,
-  OWS,
-]);
+    // header-field = field-name ":" OWS field-value OWS
+    this.HEADER_FIELD = new EveryRule([
+      this.FIELD_NAME,
+      this.COLON,
+      this.OWS,
+      this.FIELD_VALUE,
+      this.OWS,
+    ]);
 
-export const MESSAGE_BODY = new OptionalRule(new ManyRule(OCTET));
+    this.MESSAGE_BODY = new OptionalRule(new ManyRule(this.OCTET));
 
-// HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
-export const HTTP_MESSAGE = new EveryRule([
-  START_LINE,
-  new ManyRule(new OptionalRule(new EveryRule([HEADER_FIELD, CRLF]))),
-  CRLF,
-  MESSAGE_BODY,
-]);
+    // HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
+    this.HTTP_MESSAGE = new EveryRule([
+      this.START_LINE,
+      new ManyRule(new OptionalRule(new EveryRule([this.HEADER_FIELD, this.CRLF]))),
+      this.CRLF,
+      this.MESSAGE_BODY,
+    ]);
 
-export class Request {
+  }
+  //      RWS            = 1*( SP / HTAB )
+  public RWS: Rule;
+  //      OWS            = *( SP / HTAB )
+  public OWS: Rule;
+  //      BWS            = OWS
+  public BWS: Rule;
+
+  //   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+  //           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+  public TCHAR: Rule;
+
+  // token = 1*tchar
+  public TOKEN: Rule;
+
+  // method = token
+  public METHOD: Rule;
+
+  // absolute-path = 1*( "/" segment )
+  public ABSOLUTE_PATH: Rule;
+
+  // origin-form = absolute-path [ "?" query ]
+  public ORIGIN_FORM: Rule;
+
+  // absolute-form = absolute-uri
+  public ABSOLUTE_FORM: Rule;
+
+  // authority-form = authority
+  public AUTHORITY_FORM: Rule;
+
+  // asterisk-form = "*"
+  public ASTERISK_FORM: Rule;
+
+  // request-target = origin-form / absolute-form / authority-form / asterisk-form
+  public REQUEST_TARGET: Rule;
+
+  //HTTP-name     = %x48.54.54.50 ; "HTTP", case-sensitive
+  public HTTP_NAME: Rule;
+
+  // HTTP-version  = HTTP-name "/" DIGIT "." DIGIT
+  public HTTP_VERSION: Rule;
+
+
+  // request-line = method SP request-target SP HTTP-version CRLF
+  public REQUEST_LINE: Rule;
+
+  // status-code = 3DIGIT
+  public STATUS_CODE: Rule;
+
+  // obs-text = %x80-FF
+  public OBS_TEXT: Rule;
+
+  // reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
+  public REASON_PHRASE: Rule;
+
+  // status-line = HTTP-version SP status-code SP reason-phrase CRLF
+  public STATUS_LINE: Rule;
+
+  // start-line = request-line / status-line
+  public START_LINE: Rule;
+
+  // field-name = token
+  public FIELD_NAME: Rule;
+
+  // field-vchar = VCHAR / obs-text
+  public FIELD_VCHAR: Rule;
+
+  // field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+  public FIELD_CONTENT: Rule;
+
+  // obs-fold = CRLF 1*( SP / HTAB )
+  public OBS_FOLD: Rule;
+
+  // field-value = *( field-content / obs-fold )
+  public FIELD_VALUE: Rule;
+
+  // header-field = field-name ":" OWS field-value OWS
+  public HEADER_FIELD: Rule;
+
+  public MESSAGE_BODY: Rule;
+
+  // HTTP-message = start-line *( header-field CRLF ) CRLF [ message-body ]
+  public HTTP_MESSAGE: Rule;
+}
+
+export class Request extends HTTPParser {
   static parse(buffer: ByteSink): Request {
     let req = new Request();
     req._parsed = true;
-    req.valid = parse_request(buffer, req);
+    req.valid = req.parse_request(buffer, req);
     return req;
   }
 
@@ -196,7 +282,9 @@ export class Request {
   /** All the headers for this request. */
   public headers: Map<string, string> | null = null;
 
-  constructor() {}
+  constructor() {
+    super();
+  }
 
   /** Encode this request into the given bytesink, returning true if the buffer was written. */
   encode(buffer: ByteSink): bool {
@@ -239,93 +327,94 @@ export class Request {
 
     return true;
   }
-}
+  
+  /**
+   * Parse a request within the given buffer, and populate the `Request`
+   * object provided byref. It returns true if the request is valid.
+   */
+  parse_request(buffer: ByteSink, req: Request): bool {
+    let range = new Range(0, 0, buffer);
+    // Get the request line
+    // request-line = method SP request-target SP HTTP-version CRLF
 
-/**
- * Parse a request within the given buffer, and populate the `Request`
- * object provided byref. It returns true if the request is valid.
- */
-export function parse_request(buffer: ByteSink, req: Request): bool {
-  let range = new Range(0, 0, buffer);
-  // Get the request line
-  // request-line = method SP request-target SP HTTP-version CRLF
+    // Get the method and advance the cursor
+    if (!this.METHOD.test(buffer, 0, range)) return false;
+    let method = range.toString();
+    req.method = method;
+    let index = range.end;
 
-  // Get the method and advance the cursor
-  if (!METHOD.test(buffer, 0, range)) return false;
-  let method = range.toString();
-  req.method = method;
-  let index = range.end;
+    // whitespace, and advance the cursor
+    if (!this.SP.test(buffer, index, range)) return false;
+    index = range.end;
 
-  // whitespace, and advance the cursor
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
+    // get the request target
+    if (!this.REQUEST_TARGET.test(buffer, index, range)) return false;
+    let target = range.toString();
+    req.target = target;
+    index = range.end;
 
-  // get the request target
-  if (!REQUEST_TARGET.test(buffer, index, range)) return false;
-  let target = range.toString();
-  req.target = target;
-  index = range.end;
+    // whitespace, and advance the cursor
+    if (!this.SP.test(buffer, index, range)) return false;
+    index = range.end;
 
-  // whitespace, and advance the cursor
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
+    // version
+    if (!this.HTTP_VERSION.test(buffer, index, range)) return false;
+    let version = range.toString();
+    req.version = version;
+    index = range.end;
 
-  // version
-  if (!HTTP_VERSION.test(buffer, index, range)) return false;
-  let version = range.toString();
-  req.version = version;
-  index = range.end;
+    // CRLF
+    if (!this.CRLF.test(buffer, index, range)) return false;
+    index = range.end;
 
-  // CRLF
-  if (!CRLF.test(buffer, index, range)) return false;
-  index = range.end;
+    req.headers = new Map<string, string>();
+    // headers
+    while (true) {
 
-  req.headers = new Map<string, string>();
-  // headers
-  while (true) {
+      // header-field = field-name ":" OWS field-value OWS
+      let header_index = index;
+      if (!this.FIELD_NAME.test(buffer, header_index, range)) break;
+      let header_name = range.toString();
+      header_index = range.end;
 
-    // header-field = field-name ":" OWS field-value OWS
-    let header_index = index;
-    if (!FIELD_NAME.test(buffer, header_index, range)) break;
-    let header_name = range.toString();
-    header_index = range.end;
+      // ":"
+      if (!this.COLON.test(buffer, header_index, range)) break;
+      header_index++;
 
-    // ":"
-    if (!COLON.test(buffer, header_index, range)) break;
-    header_index++;
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
 
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
+      if (!this.FIELD_VALUE.test(buffer, header_index, range)) break;
+      let header_value = range.toString();
+      header_index = range.end;
 
-    if (!FIELD_VALUE.test(buffer, header_index, range)) break;
-    let header_value = range.toString();
-    header_index = range.end;
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
 
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
+      // set the header
+      req.headers!.set(header_name, header_value);
 
-    // set the header
-    req.headers!.set(header_name, header_value);
+      // advance the cursor
+      index = header_index;
+    }
 
-    // advance the cursor
-    index = header_index;
+    // set the body range
+    if (!this.CRLF.test(buffer, index, range)) return false;
+    let copy = range.copy();
+    copy.start = range.end;
+    copy.end = buffer.byteLength;
+    req.body = copy;
+
+    return true;
   }
-
-  // set the body range
-  if (!CRLF.test(buffer, index, range)) return false;
-  let copy = range.copy();
-  copy.start = range.end;
-  copy.end = buffer.byteLength;
-  req.body = copy;
-
-  return true;
 }
 
-export class Response {
+
+export class Response extends HTTPParser {
   static parse(buffer: ByteSink): Response {
     let res = new Response();
     res._parsed = true;
-    res.valid = parse_response(buffer, res);
+    res.valid = res.parse_response(buffer, res);
     return res;
   }
 
@@ -365,82 +454,85 @@ export class Response {
     }
   }
 
-  constructor() { }
-}
+  constructor() {
+    super();
+  }
+    
+  /**
+   * Parse a response from the given buffer, and populate the
+   * given response object, returning true if parsing was successful.
+   */
+  parse_response(buffer: ByteSink, res: Response): bool {
+    let range = new Range(0, 0, buffer);
+    // HTTP-version SP status-code SP reason-phrase CRLF
+    // version
+    if (!this.HTTP_VERSION.test(buffer, 0, range)) return false;
+    let version = range.toString();
+    res.version = version;
+    let index = range.end;
 
-/**
- * Parse a response from the given buffer, and populate the
- * given response object, returning true if parsing was successful.
- */
-export function parse_response(buffer: ByteSink, res: Response): bool {
-  let range = new Range(0, 0, buffer);
-  // HTTP-version SP status-code SP reason-phrase CRLF
-  // version
-  if (!HTTP_VERSION.test(buffer, 0, range)) return false;
-  let version = range.toString();
-  res.version = version;
-  let index = range.end;
-
-  // SP
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
-
-  // status-code
-  if (!STATUS_CODE.test(buffer, index, range)) return false;
-  let status = <i32>parseInt(range.toString());
-  res.status = status;
-  index = range.end;
-
-  // SP
-  if (!SP.test(buffer, index, range)) return false;
-  index = range.end;
-
-  // reason
-  if (REASON_PHRASE.test(buffer, index, range)) {
+    // SP
+    if (!this.SP.test(buffer, index, range)) return false;
     index = range.end;
+
+    // status-code
+    if (!this.STATUS_CODE.test(buffer, index, range)) return false;
+    let status = <i32>parseInt(range.toString());
+    res.status = status;
+    index = range.end;
+
+    // SP
+    if (!this.SP.test(buffer, index, range)) return false;
+    index = range.end;
+
+    // reason
+    if (this.REASON_PHRASE.test(buffer, index, range)) {
+      index = range.end;
+    }
+
+    // CRLF
+    if (!this.CRLF.test(buffer, index, range)) return false;
+    index += 2;
+
+    res.headers = new Map<string, string>();
+    // headers
+    while (true) {
+
+      // header-field = field-name ":" OWS field-value OWS
+      let header_index = index;
+      if (!this.FIELD_NAME.test(buffer, header_index, range)) break;
+      let header_name = range.toString();
+      header_index = range.end;
+
+      // ":"
+      if (!this.COLON.test(buffer, header_index, range)) break;
+      header_index++;
+
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
+
+      if (!this.FIELD_VALUE.test(buffer, header_index, range)) break;
+      let header_value = range.toString();
+      header_index = range.end;
+
+      // optional whitespace
+      if (this.OWS.test(buffer, header_index, range)) header_index = range.end;
+
+      // set the header
+      res.headers!.set(header_name, header_value);
+
+      // advance the cursor
+      index = header_index;
+    }
+
+    // set the body range
+    if (!this.CRLF.test(buffer, index, range)) return false;
+    let copy = range.copy();
+    copy.start = range.end;
+    copy.end = buffer.byteLength;
+    res.body = copy;
+
+    return true;
   }
 
-  // CRLF
-  if (!CRLF.test(buffer, index, range)) return false;
-  index += 2;
-
-  res.headers = new Map<string, string>();
-  // headers
-  while (true) {
-
-    // header-field = field-name ":" OWS field-value OWS
-    let header_index = index;
-    if (!FIELD_NAME.test(buffer, header_index, range)) break;
-    let header_name = range.toString();
-    header_index = range.end;
-
-    // ":"
-    if (!COLON.test(buffer, header_index, range)) break;
-    header_index++;
-
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
-
-    if (!FIELD_VALUE.test(buffer, header_index, range)) break;
-    let header_value = range.toString();
-    header_index = range.end;
-
-    // optional whitespace
-    if (OWS.test(buffer, header_index, range)) header_index = range.end;
-
-    // set the header
-    res.headers!.set(header_name, header_value);
-
-    // advance the cursor
-    index = header_index;
-  }
-
-  // set the body range
-  if (!CRLF.test(buffer, index, range)) return false;
-  let copy = range.copy();
-  copy.start = range.end;
-  copy.end = buffer.byteLength;
-  res.body = copy;
-
-  return true;
 }
